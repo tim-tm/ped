@@ -97,4 +97,4 @@ Your changes should not be extremely huge, if you really want to contribute some
 
 ## License
 
-Ped is licensed under the [MIT License](https://github.com/tim-tm/ped/tree/main/LICENSE).
+Ped is licensed under the [MIT License](https://github.com/tim-tm/ped/blob/main/LICENSE).
