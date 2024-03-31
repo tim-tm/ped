@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ncurses.h>
+#include <math.h>
 
 #define MAX_LINE_SIZE 512
 #define CTRL(k) ((k)&0x1f)
@@ -22,6 +23,10 @@ char **fbuf;
 
 size_t cursor_x = 0;
 size_t cursor_y = 0;
+size_t max_y = 0;
+size_t max_x = 0;
+size_t scroll_y = 0;
+size_t cursor_max = 0;
 
 enum Mode current_mode = MODE_NORMAL;
 
@@ -45,7 +50,7 @@ int main(int argc, char **argv) {
         for (fbuf_count = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++fbuf_count) {
             if (fbuf_count >= fbuf_max) {
                 fbuf_max *= 2;
-                fbuf = realloc(fbuf, fbuf_max);
+                fbuf = realloc(fbuf, fbuf_max*sizeof(char*));
             }
             fbuf[fbuf_count] = calloc(MAX_LINE_SIZE, sizeof(char));
             if (fbuf[fbuf_count] == NULL) {
@@ -56,38 +61,52 @@ int main(int argc, char **argv) {
         }
     }
 
+    size_t line_size = floor(log10(fbuf_count)) + 3;
+
     initscr();
-    move(cursor_y, cursor_x+3);
+    move(cursor_y, cursor_x+line_size+1);
     refresh();
     noecho();
     raw();
 
-    WINDOW *line_count = newwin(LINES, 2, 0, 0);
-    WINDOW *text = newwin(LINES, COLS-2, 0, 3);
-    keypad(text, TRUE);
+    getmaxyx(stdscr, max_y, max_x);
+    cursor_max = max_y;
+    WINDOW *line_win = newwin(max_y, line_size, 0, 0);
+    WINDOW *text_win = newwin(max_y, max_x-line_size, 0, line_size);
+    keypad(text_win, TRUE);
 
     int c;
     while (c != CTRL('q')) {
-        werase(line_count);
-        werase(text);
+        werase(line_win);
+        werase(text_win);
+
+        if (is_term_resized(max_y, max_x)) {
+            getmaxyx(stdscr, max_y, max_x);
+        }
 
         for (size_t i = 0; i < fbuf_count; ++i) {
-            mvwprintw(line_count, i, 0, "%zu\n", i+1);
-            mvwprintw(text, i, 0, "%s", fbuf[i]);
+            size_t l_size = floor(log10(i+1)) + 1;
+            mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu\n", i+1);
+            mvwprintw(text_win, i-scroll_y, 0, "%s", fbuf[i]);
         }
         move(cursor_y, cursor_x+3);
         
-        wrefresh(line_count);
-        wrefresh(text);
+        wrefresh(line_win);
+        wrefresh(text_win);
         refresh();
 
-        c = wgetch(text);
+        c = wgetch(text_win);
         switch (current_mode) {
             case MODE_NORMAL: {
                 switch (c) {
                     case KEY_DOWN:
                     case 'j': {
                         if (cursor_y < fbuf_count-1) {
+                            if (cursor_y > cursor_max) {
+                                scroll_y++;
+                                cursor_max = cursor_y;
+                            }
+                            
                             cursor_y++;
                             cursor_x = 0;
                         }
@@ -95,6 +114,7 @@ int main(int argc, char **argv) {
                     case KEY_UP:
                     case 'k': {
                         if (cursor_y > 0) {
+                            // TODO: Implement scrolling back up
                             cursor_y--;
                             cursor_x = 0;
                         }
@@ -138,8 +158,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    delwin(line_count);
-    delwin(text);
+    delwin(line_win);
+    delwin(text_win);
     endwin();
 
     for (size_t i = 0; i < fbuf_count; ++i) {
