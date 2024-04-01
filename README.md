@@ -3,6 +3,8 @@
 The **p**erfect **ed**itor or **p**ossibly the worst **ed**itor.
 Ped is a vim-like editor made for the terminal using ncurses.
 
+![sc](https://github.com/tim-tm/ped/assets/43402731/bf64a09c-184d-4770-86cd-c22454a87625)
+
 ## Getting started
 
 ### Package managers
