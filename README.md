@@ -1,7 +1,7 @@
 # ped
 
 The **p**erfect **ed**itor or **p**ossibly the worst **ed**itor.
-Ped is a editor made for the terminal using ncurses.
+Ped is a vim-like editor made for the terminal using ncurses.
 
 ## Getting started
 
@@ -83,6 +83,31 @@ Installing
 ```sh
 sudo make install
 ```
+
+## Usage
+
+Ped uses different modes, just like vim or other similar editors do.
+
+| **Mode** | **Purpose**                                                                                                                                                           | **State**             |
+|:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+| Normal   | The normal mode is the starting point of the editor,<br>you can navigate around and access every mode from here,<br>take a look at the keyboard shortcuts for more information. | Partially implemented |
+| Insert   | As the name implies, the insert mode is made for inserting<br>characters into a buffer (file).                                                                        | not yet implemented   |
+| Visual   | The visual mode is useful for selecting and moving bigger<br>pieces of file data.                                                                                     | not yet implemented   |
+| Search   | The search mode makes it possible to search inside of<br>buffers (files).                                                                                             | not yet implemented   |
+
+Here is a list of all currently supported keybinds.
+
+|    **Mode**   | **Key** | **Effect**                                                                                                             |
+|:-------------:|---------|------------------------------------------------------------------------------------------------------------------------|
+| Any           | Escape  | Go into normal mode                                                                                                    |
+| Any           | Ctrl+q  | Exit ped                                                                                                               |
+| Normal/Insert | j/Down  | Move the cursor down                                                                                                   |
+| Normal/Insert | k/Up    | Move the cursor up                                                                                                     |
+| Normal/Insert | l/Right | Move the cursor right                                                                                                  |
+| Normal/Insert | h/Left  | Move the cursor left                                                                                                   |
+| Normal        | a       | Enter insert mode (in vim, 'a' is means **a**ppend<br>and 'i' means **i**nsert, ped is for now only able<br>to append) |
+| Normal        | v       | Enter visual mode                                                                                                      |
+| Normal        | /       | Enter search mode                                                                                                      |
 
 ## Contributing
 
