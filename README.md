@@ -9,7 +9,7 @@ Ped is a editor made for the terminal using ncurses.
 
 As soon as ped gets usable, it will be available in the AUR. For now it is not available via. any package manager.
 
-### Building on your on
+### Building on your own
 
 **Prerequisites**
 
