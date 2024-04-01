@@ -28,10 +28,12 @@ size_t max_y = 0;
 size_t max_x = 0;
 size_t scroll_y = 0;
 size_t cursor_max = 0;
+char *info_msg = NULL;
 
 enum Mode current_mode = MODE_NORMAL;
 
 void free_buffer(void);
+bool save_buffer(char *filename);
 const char *get_mode_name(enum Mode mode);
 
 int main(int argc, char **argv) {
@@ -39,7 +41,8 @@ int main(int argc, char **argv) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;
     } else {
-        fp = fopen(argv[1], "r+");
+        // NOTE: The file will be opened later for writing
+        fp = fopen(argv[1], "r");
         if (fp == NULL) {
             printf("Failed to open file: %s\n", argv[1]);
             return 1;
@@ -86,7 +89,8 @@ int main(int argc, char **argv) {
     cursor_max = max_y;
 
     int c;
-    while (c != CTRL('q')) {
+    bool close_requested = false;
+    while (c != CTRL('q') && !close_requested) {
         werase(line_win);
         werase(text_win);
         werase(infobar_win);
@@ -109,6 +113,9 @@ int main(int argc, char **argv) {
             mvwprintw(text_win, i-scroll_y, 0, "%s", fbuf[i]);
         }
         wprintw(infobar_win, "%s @ %s\n", get_mode_name(current_mode), filename);
+        if (info_msg != NULL) {
+            wprintw(infobar_win, "%s", info_msg);
+        }
         move(cursor_y-scroll_y, cursor_x+line_size);
 
         wrefresh(line_win);
@@ -117,6 +124,10 @@ int main(int argc, char **argv) {
         refresh();
 
         c = wgetch(text_win);
+        if (info_msg != NULL) {
+            info_msg = NULL;
+        }
+
         switch (current_mode) {
             case MODE_NORMAL: {
                 switch (c) {
@@ -163,12 +174,18 @@ int main(int argc, char **argv) {
                     case '/': {
                         current_mode = MODE_SEARCH;
                     } break;
+                    case CTRL('s'): {
+                        if (save_buffer(filename)) {
+                            close_requested = true;
+                        } else {
+                            info_msg = "Failed to save file!";
+                        }
+                    } break;
                 }
             } break;
             case MODE_INSERT: {
                 switch (c) {
-                    case KEY_DOWN:
-                    case 'j': {
+                    case KEY_DOWN: {
                         if (cursor_y < fbuf_count-1) {
                             cursor_y++;
                             cursor_x = 0;
@@ -177,8 +194,7 @@ int main(int argc, char **argv) {
                             }
                         }
                     } break;
-                    case KEY_UP:
-                    case 'k': {
+                    case KEY_UP: {
                         if (cursor_y > 0) {
                             cursor_y--;
                             cursor_x = 0;
@@ -187,16 +203,14 @@ int main(int argc, char **argv) {
                             }
                         }
                     } break;
-                    case KEY_RIGHT:
-                    case 'l': {
+                    case KEY_RIGHT: {
                         char *curr_line = fbuf[cursor_y];
                         size_t len = strnlen(curr_line, MAX_LINE_SIZE);
                         if (cursor_x < len-1) {
                             cursor_x++;
                         }
                     } break;
-                    case KEY_LEFT:
-                    case 'h': {
+                    case KEY_LEFT: {
                         if (cursor_x > 0) {
                             cursor_x--;
                         }
@@ -205,8 +219,12 @@ int main(int argc, char **argv) {
                         current_mode = MODE_NORMAL;
                     } break;
                     default: {
-                        // TODO: Implement
-                        char *dir = &fbuf[cursor_y][cursor_x];
+                        size_t len = 0;
+                        if ((len = strlen(fbuf[cursor_y])) >= MAX_LINE_SIZE) break;
+
+                        char *from = &fbuf[cursor_y][cursor_x];
+                        memmove(from+1, from, len-cursor_x);
+                        fbuf[cursor_y][cursor_x++] = c;
                     } break;
                 }
             } break;
@@ -241,6 +259,24 @@ void free_buffer(void) {
         if (fbuf[i] != NULL) free(fbuf[i]);
     }
     if (fbuf != NULL) free(fbuf);
+}
+
+bool save_buffer(char *filename) {
+    if (filename == NULL) return false;
+
+    if (fp != NULL) {
+        fclose(fp);
+    }
+    fp = fopen(filename, "w+");
+    if (fp == NULL) {
+        return false;
+    }
+
+    for (size_t i = 0; i < fbuf_count; ++i) {
+        fprintf(fp, "%s", fbuf[i]);
+    }
+    fclose(fp);
+    return true;
 }
 
 const char *get_mode_name(enum Mode mode) {

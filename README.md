@@ -103,13 +103,18 @@ Here is a list of all currently supported keybinds.
 |:-------------:|---------|------------------------------------------------------------------------------------------------------------------------|
 | Any           | Escape  | Go into normal mode                                                                                                    |
 | Any           | Ctrl+q  | Exit ped                                                                                                               |
-| Normal/Insert | j/Down  | Move the cursor down                                                                                                   |
-| Normal/Insert | k/Up    | Move the cursor up                                                                                                     |
-| Normal/Insert | l/Right | Move the cursor right                                                                                                  |
-| Normal/Insert | h/Left  | Move the cursor left                                                                                                   |
+| Normal        | j/Down  | Move the cursor down                                                                                                   |
+| Normal        | k/Up    | Move the cursor up                                                                                                     |
+| Normal        | l/Right | Move the cursor right                                                                                                  |
+| Normal        | h/Left  | Move the cursor left                                                                                                   |
 | Normal        | a       | Enter insert mode (in vim, 'a' is means **a**ppend<br>and 'i' means **i**nsert, ped is for now only able<br>to append) |
 | Normal        | v       | Enter visual mode                                                                                                      |
 | Normal        | /       | Enter search mode                                                                                                      |
+| Normal        | Ctrl+s  | Save current buffer                                                                                                    |
+| Insert        | Down    | Move the cursor down                                                                                                   |
+| Insert        | Up      | Move the cursor up                                                                                                     |
+| Insert        | Right   | Move the cursor right                                                                                                  |
+| Insert        | Left    | Move the cursor left                                                                                                   |
 
 ## Contributing
 
