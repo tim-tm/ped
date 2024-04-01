@@ -86,11 +86,18 @@ int main(int argc, char **argv) {
 
         for (size_t i = 0; i < fbuf_count; ++i) {
             size_t l_size = floor(log10(i+1)) + 1;
+            if (cursor_y >= max_y) {
+                scroll_y = cursor_max-max_y+1;
+            } else {
+                // FIXME: This causes a weird clipping that should be removed
+                scroll_y = 0;
+            }
+
             mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu\n", i+1);
             mvwprintw(text_win, i-scroll_y, 0, "%s", fbuf[i]);
         }
-        move(cursor_y, cursor_x+3);
-        
+        move(cursor_y-scroll_y, cursor_x+line_size);
+
         wrefresh(line_win);
         wrefresh(text_win);
         refresh();
@@ -102,21 +109,21 @@ int main(int argc, char **argv) {
                     case KEY_DOWN:
                     case 'j': {
                         if (cursor_y < fbuf_count-1) {
-                            if (cursor_y > cursor_max) {
-                                scroll_y++;
-                                cursor_max = cursor_y;
-                            }
-                            
                             cursor_y++;
                             cursor_x = 0;
+                            if (cursor_y > max_y && cursor_y >= cursor_max) {
+                                cursor_max++;
+                            }
                         }
                     } break;
                     case KEY_UP:
                     case 'k': {
                         if (cursor_y > 0) {
-                            // TODO: Implement scrolling back up
                             cursor_y--;
                             cursor_x = 0;
+                            if (cursor_y <= scroll_y) {
+                                cursor_max--;
+                            }
                         }
                     } break;
                     case KEY_RIGHT:
