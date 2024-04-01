@@ -8,6 +8,7 @@
 #define MAX_LINE_SIZE 512
 #define CTRL(k) ((k)&0x1f)
 #define KEY_ESCAPE 27
+#define KEY_TAB 9
 
 enum Mode {
     MODE_NORMAL = 0,
@@ -32,9 +33,11 @@ char *info_msg = NULL;
 
 enum Mode current_mode = MODE_NORMAL;
 
-void free_buffer(void);
-bool save_buffer(char *filename);
-const char *get_mode_name(enum Mode mode);
+const char *mode_get_name(enum Mode mode);
+
+void buffer_free(void);
+bool buffer_save(char *filename);
+void buffer_insert_char(char c);
 
 int main(int argc, char **argv) {
     if (argc <= 1 || argv[1] == NULL) {
@@ -112,7 +115,7 @@ int main(int argc, char **argv) {
             mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu\n", i+1);
             mvwprintw(text_win, i-scroll_y, 0, "%s", fbuf[i]);
         }
-        wprintw(infobar_win, "%s @ %s\n", get_mode_name(current_mode), filename);
+        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), filename);
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
@@ -175,7 +178,7 @@ int main(int argc, char **argv) {
                         current_mode = MODE_SEARCH;
                     } break;
                     case CTRL('s'): {
-                        if (save_buffer(filename)) {
+                        if (buffer_save(filename)) {
                             close_requested = true;
                         } else {
                             info_msg = "Failed to save file!";
@@ -218,13 +221,20 @@ int main(int argc, char **argv) {
                     case KEY_ESCAPE: {
                         current_mode = MODE_NORMAL;
                     } break;
-                    default: {
+                    case KEY_BACKSPACE: {
+                        if (cursor_x <= 0) break;
                         size_t len = 0;
-                        if ((len = strlen(fbuf[cursor_y])) >= MAX_LINE_SIZE) break;
+                        if ((len = strlen(fbuf[cursor_y])) <= 0) break;
 
                         char *from = &fbuf[cursor_y][cursor_x];
-                        memmove(from+1, from, len-cursor_x);
-                        fbuf[cursor_y][cursor_x++] = c;
+                        memmove(from-1, from, len-cursor_x);
+                        cursor_x--;
+                    } break;
+                    case KEY_TAB: {
+                        buffer_insert_char('\t');
+                    } break;
+                    default: {
+                        buffer_insert_char(c);
                     } break;
                 }
             } break;
@@ -250,18 +260,27 @@ int main(int argc, char **argv) {
     delwin(infobar_win);
     endwin();
 
-    free_buffer();
+    buffer_free();
     return 0;
 }
 
-void free_buffer(void) {
+const char *mode_get_name(enum Mode mode) {
+    switch (mode) {
+        case MODE_NORMAL: return "NORMAL";
+        case MODE_INSERT: return "INSERT";
+        case MODE_VISUAL: return "VISUAL";
+        case MODE_SEARCH: return "SEARCH";
+    }
+}
+
+void buffer_free(void) {
     for (size_t i = 0; i < fbuf_count; ++i) {
         if (fbuf[i] != NULL) free(fbuf[i]);
     }
     if (fbuf != NULL) free(fbuf);
 }
 
-bool save_buffer(char *filename) {
+bool buffer_save(char *filename) {
     if (filename == NULL) return false;
 
     if (fp != NULL) {
@@ -279,11 +298,13 @@ bool save_buffer(char *filename) {
     return true;
 }
 
-const char *get_mode_name(enum Mode mode) {
-    switch (mode) {
-        case MODE_NORMAL: return "NORMAL";
-        case MODE_INSERT: return "INSERT";
-        case MODE_VISUAL: return "VISUAL";
-        case MODE_SEARCH: return "SEARCH";
-    }
+void buffer_insert_char(char c) {
+    if (cursor_y >= fbuf_count || cursor_x > MAX_LINE_SIZE) return;
+    
+    size_t len = 0;
+    if ((len = strlen(fbuf[cursor_y])) >= MAX_LINE_SIZE) return;
+
+    char *from = &fbuf[cursor_y][cursor_x];
+    memmove(from+1, from, len-cursor_x);
+    fbuf[cursor_y][cursor_x++] = c;
 }
