@@ -35,7 +35,7 @@ typedef struct _Line_ {
 } Line;
 
 typedef struct _Buffer_ {
-    char *filename;
+    char *file_path;
     
     size_t size;
     Line *lines;
@@ -58,10 +58,109 @@ enum Mode current_mode = MODE_NORMAL;
 
 const char *mode_get_name(enum Mode mode);
 
+/**
+ *  buffer_read_from_file(path)
+ *
+ *  Purpose:
+ *      This function reads the contents of a file
+ *      at the given path into the main buffer.
+ *      Note that this function is using printf to
+ *      print an error if occoured.
+ *  Return value:
+ *      true - Reading was successful
+ *      false - Reading was not successful
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      buffer_read_from_file(buffer, path)
+ */
+bool buffer_read_from_file(char *path);
+
+/**
+ *  buffer_free()
+ *
+ *  Purpose:
+ *      This function free's all of the memory allocated
+ *      by buffer_read_from_file.
+ *  Return value:
+ *      void
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      buffer_free(buffer)
+ */
 void buffer_free(void);
-bool buffer_save(char *filename);
+
+/**
+ *  buffer_save(path)
+ *
+ *  Purpose:
+ *      This function writes the content of the main buffer
+ *      to the file being specified by 'path'.
+ *      Note that this function is not using printf to
+ *      print an error if occoured.
+ *  Return value:
+ *      true - Successfully saved the file
+ *      false - There was an error while saving the file
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      buffer_save(buffer, path)
+ */
+bool buffer_save(char *path);
+
+/**
+ *  buffer_append_at_cursor(c)
+ *
+ *  Purpose:
+ *      This function appends a character 'c' to the line
+ *      selected by the user, which is being stored in
+ *      'cursor_y'.
+ *  Return value:
+ *      void
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      buffer_append_at_cursor(buffer, c)
+ */
 void buffer_append_at_cursor(char c);
+
+/**
+ *  buffer_find_line(index)
+ *
+ *  Purpose:
+ *      This function finds a line inside of the main buffer
+ *      given it's index.
+ *  Return value:
+ *      NULL - the line could not be found
+ *      Line* - the line at the specified index
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      buffer_find_line(buffer, index)
+ */
 Line *buffer_find_line(size_t index);
+
+/**
+ *  line_find_char(lin, index)
+ *
+ *  Purpose:
+ *      This function finds a character inside of the specified
+ *      line 'lin' at the given index.
+ *  Return value:
+ *      NULL - the char could not be found
+ *      Character* - the char at the specified index
+ *  Possible extension:
+ *      Requring the caller to specify the buffer could
+ *      be good for implementing a multi-buffer system.
+ *      A new function signature may look like this:
+ *      line_find_char(buffer, lin, index)
+ */
 Character *line_find_char(Line *lin, size_t index);
 
 int main(int argc, char **argv) {
@@ -69,55 +168,13 @@ int main(int argc, char **argv) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;
     } else {
-        // NOTE: The file will be opened later for writing
-        fp = fopen(argv[1], "r");
-        if (fp == NULL) {
-            printf("Failed to open file: %s\n", argv[1]);
+        if (!buffer_read_from_file(argv[1])) {
             return 1;
-        }
-        buf.filename = argv[1];
-
-        char str[512];
-        for (buf.size = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++buf.size) {
-            Line *lin = calloc(1, sizeof(Line));
-            if (lin == NULL) {
-                printf("Failed to allocate space for buffer.\n");
-                return 1;
-            }
-
-            size_t len = strnlen(str, MAX_LINE_SIZE);
-            Character *itr = lin->chars;
-            for (lin->size = 0; lin->size < len; ++lin->size) {
-                Character *tmp = calloc(1, sizeof(Character));
-                if (tmp == NULL) {
-                    printf("Failed to allocate space for buffer.\n");
-                    return 1;
-                }
-                tmp->value = str[lin->size];
-                
-                if (lin->size == 0) {
-                    lin->first_char = tmp;
-                    lin->last_char = tmp;
-                } else {
-                    lin->last_char->next = tmp;
-                    tmp->prev = lin->last_char;
-                    lin->last_char = tmp;
-                }
-                itr = tmp;
-            }
-
-            if (buf.lines == NULL) {
-                buf.first_line = lin;
-                buf.last_line = lin;
-            } else {
-                buf.last_line->next = lin;
-                lin->prev = buf.last_line;
-                buf.last_line = lin;
-            }
-            buf.lines = lin;
         }
     }
 
+    // hacky thing to calculate the length of an integer
+    // Example: 1234 -> 4, 12 -> 2, 62332 -> 5
     size_t line_size = floor(log10(buf.size)) + 3;
 
     initscr();
@@ -169,7 +226,7 @@ int main(int argc, char **argv) {
             }
             itr = itr->next;
         }
-        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), buf.filename);
+        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), buf.file_path);
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
@@ -210,7 +267,10 @@ int main(int argc, char **argv) {
                     } break;
                     case KEY_RIGHT:
                     case 'l': {
-                        cursor_x++;
+                        Line *lin = buffer_find_line(cursor_y);
+                        if (lin != NULL && cursor_x < lin->size-1) {
+                            cursor_x++;
+                        }
                     } break;
                     case KEY_LEFT:
                     case 'h': {
@@ -228,7 +288,7 @@ int main(int argc, char **argv) {
                         current_mode = MODE_SEARCH;
                     } break;
                     case CTRL('s'): {
-                        if (buffer_save(buf.filename)) {
+                        if (buffer_save(buf.file_path)) {
                             close_requested = true;
                         } else {
                             info_msg = "Failed to save file!";
@@ -277,8 +337,19 @@ int main(int argc, char **argv) {
                         Character *ch = line_find_char(lin, cursor_x);
                         if (ch == NULL) break;
                         if (ch == lin->first_char) {
+                            // Example:
+                            //      |a| <-> b <-> c
+                            //      b <-> c
                             lin->first_char = ch->next;
                         } else {
+                            // Example:
+                            //      a <-> |b| <-> c
+                            //      
+                            // 1.   ______________
+                            //     |             |
+                            //     a <-> |b| ->  c
+                            // 2.
+                            //     a <-> c
                             ch->next->prev = ch->prev;
                             ch->prev->next = ch->next;
                         }
@@ -293,8 +364,19 @@ int main(int argc, char **argv) {
                         Character *ch = line_find_char(lin, del_x_index);
                         if (ch == NULL) break;
                         if (ch == lin->first_char) {
+                            // Example:
+                            //      |a| <-> b <-> c
+                            //      b <-> c
                             lin->first_char = ch->next;
                         } else {
+                            // Example:
+                            //      a <-> |b| <-> c
+                            //      
+                            // 1.   ______________
+                            //     |             |
+                            //     a <-> |b| ->  c
+                            // 2.
+                            //     a <-> c
                             ch->next->prev = ch->prev;
                             ch->prev->next = ch->next;
                         }
@@ -345,6 +427,69 @@ const char *mode_get_name(enum Mode mode) {
     }
 }
 
+bool buffer_read_from_file(char *path) {
+    // NOTE: The file will be opened later for writing
+    fp = fopen(path, "r");
+    if (fp == NULL) {
+        printf("Failed to open file: %s\n", path);
+        return false;
+    }
+    buf.file_path = path;
+
+    char str[512];
+    for (buf.size = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++buf.size) {
+        Line *lin = calloc(1, sizeof(Line));
+        if (lin == NULL) {
+            printf("Failed to allocate space for buffer.\n");
+            return false;
+        }
+
+        size_t len = strnlen(str, MAX_LINE_SIZE);
+        Character *itr = lin->chars;
+        for (lin->size = 0; lin->size < len; ++lin->size) {
+            Character *tmp = calloc(1, sizeof(Character));
+            if (tmp == NULL) {
+                printf("Failed to allocate space for buffer.\n");
+                return false;
+            }
+            tmp->value = str[lin->size];
+            
+            if (lin->size == 0) {
+                // The first character of a line, both first and last char are set to this char
+                lin->first_char = tmp;
+                lin->last_char = tmp;
+            } else {
+                // Appending to the end
+                //      last -> new
+                //      last <-> new
+                // Updating the last char
+                //      last = new
+                lin->last_char->next = tmp;
+                tmp->prev = lin->last_char;
+                lin->last_char = tmp;
+            }
+            itr = tmp;
+        }
+
+        if (buf.lines == NULL) {
+            // The first line of a buffer, both first and last line are set to this line
+            buf.first_line = lin;
+            buf.last_line = lin;
+        } else {
+            // Appending to the end
+            //      last -> new
+            //      last <-> new
+            // Updating the last char
+            //      last = new
+            buf.last_line->next = lin;
+            lin->prev = buf.last_line;
+            buf.last_line = lin;
+        }
+        buf.lines = lin;
+    }
+    return true;
+}
+
 void buffer_free(void) {
     Line *line_itr = buf.first_line;
     while (line_itr != NULL) {
@@ -360,13 +505,13 @@ void buffer_free(void) {
     }
 }
 
-bool buffer_save(char *filename) {
-    if (filename == NULL) return false;
+bool buffer_save(char *path) {
+    if (path == NULL) return false;
 
     if (fp != NULL) {
         fclose(fp);
     }
-    fp = fopen(filename, "w+");
+    fp = fopen(path, "w+");
     if (fp == NULL) {
         return false;
     }
@@ -395,9 +540,34 @@ void buffer_append_at_cursor(char c) {
     Character *tmp = calloc(1, sizeof(Character));
     if (tmp == NULL) return;
     tmp->value = c;
-    tmp->next = ch->next;
-    tmp->prev = ch;
-    ch->next = tmp;
+    
+    // if cursor is at the end of the line
+    if (cursor_x >= lin->size-1) {
+        // Appending to the end
+        //      last -> new
+        //      last <-> new
+        // Updating the last char
+        //      last = new
+        lin->last_char->next = tmp;
+        tmp->prev = lin->last_char;
+        lin->last_char = tmp;
+    } else {
+        // Example:
+        // 'a' is being placed between 'c' and 'd'
+        //      b <-> c <-> d
+        
+        //      b <-> c  a -> d
+        tmp->next = ch->next;
+        
+        //      b <-> c <- a -> d
+        tmp->prev = ch;
+        
+        //      b <-> c <- a <-> d
+        ch->next->prev = tmp;
+        
+        //      b <-> c <-> a <-> d
+        ch->next = tmp;
+    }
     lin->size++;
     cursor_x++;    
 }
