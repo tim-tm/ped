@@ -359,8 +359,19 @@ int main(int argc, char **argv) {
                     } break;
                     case KEY_BACKSPACE: {
                         Line *lin = buffer_find_line(cursor_y);
-                        if (lin == NULL || lin->size <= 0) break;
-                        
+                        if (lin == NULL) break;
+                        if (lin->size <= 0) {
+                            if (lin == buf.first_line) {
+                                buf.first_line = lin->next;
+                            } else {
+                                lin->next->prev = lin->prev;
+                                lin->prev->next = lin->next;
+                            }
+                            free(lin);
+                            buf.size--;
+                            break;
+                        }
+
                         long long del_x_index = cursor_x-1;
                         Character *ch = line_find_char(lin, del_x_index);
                         if (ch == NULL) break;
