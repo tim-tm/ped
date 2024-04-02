@@ -446,7 +446,10 @@ bool buffer_read_from_file(char *path) {
 
         size_t len = strnlen(str, MAX_LINE_SIZE);
         Character *itr = lin->chars;
-        for (lin->size = 0; lin->size < len; ++lin->size) {
+        // len-1 in order to strip off that \n at the end
+        // we can for sure say that there is always a \n because
+        // fgets only reads in lines
+        for (lin->size = 0; lin->size < len-1; ++lin->size) {
             Character *tmp = calloc(1, sizeof(Character));
             if (tmp == NULL) {
                 printf("Failed to allocate space for buffer.\n");
@@ -523,6 +526,7 @@ bool buffer_save(char *path) {
             fprintf(fp, "%c", char_itr->value);
             char_itr = char_itr->next;
         }
+        fprintf(fp, "\n");
         line_itr = line_itr->next;
     }
     fclose(fp);
