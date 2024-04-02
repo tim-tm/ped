@@ -117,6 +117,7 @@ Here is a list of all currently supported keybinds.
 | Insert        | Left    | Move the cursor left                                                                                                   |
 | Insert        | Backspace | Delete the character in front of the cursor                                                                          |
 | Insert        | Entf    | Delete the character selected by the cursor                                                                            |
+| Insert        | Enter   | Insert an empty line below the cursor                                                                                  |
 
 ## Concept
 

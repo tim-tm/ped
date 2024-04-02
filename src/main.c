@@ -9,6 +9,7 @@
 #define CTRL(k) ((k)&0x1f)
 #define KEY_ESCAPE 27
 #define KEY_TAB 9
+#define KEY_ENTER1 10
 
 enum Mode {
     MODE_NORMAL = 0,
@@ -387,6 +388,30 @@ int main(int argc, char **argv) {
                     case KEY_TAB: {
                         buffer_append_at_cursor('\t');
                     } break;
+                    case KEY_ENTER1: {
+                        Line *curr_lin = buffer_find_line(cursor_y);
+                        if (curr_lin == NULL) break;
+
+                        Line *lin = calloc(1, sizeof(Line));
+                        if (lin == NULL) break;
+                        // Example:
+                        // 'a' is being placed between 'c' and 'd'
+                        //      b <-> c <-> d
+                        
+                        //      b <-> c  a -> d
+                        lin->next = curr_lin->next;
+                        
+                        //      b <-> c <- a -> d
+                        lin->prev = curr_lin;
+                        
+                        //      b <-> c <- a <-> d
+                        curr_lin->next->prev = lin;
+                        
+                        //      b <-> c <-> a <-> d
+                        curr_lin->next = lin;
+                        buf.size++;
+                        cursor_y++;
+                    } break;
                     default: {
                         buffer_append_at_cursor(c);
                     } break;
@@ -537,14 +562,20 @@ void buffer_append_at_cursor(char c) {
     if (cursor_y >= buf.size || cursor_x > MAX_LINE_SIZE) return;  
     Line *lin = buffer_find_line(cursor_y);
     if (lin == NULL || lin->size >= MAX_LINE_SIZE) return;
-    
-    Character *ch = line_find_char(lin, cursor_x);
-    if (ch == NULL) return;
 
     Character *tmp = calloc(1, sizeof(Character));
     if (tmp == NULL) return;
     tmp->value = c;
-    
+
+    Character *ch = line_find_char(lin, cursor_x);
+    // the line is empty
+    if (ch == NULL) {
+        lin->first_char = tmp;
+        lin->last_char = tmp;
+        lin->size++;
+        return;
+    }
+
     // if cursor is at the end of the line
     if (cursor_x >= lin->size-1) {
         // Appending to the end
@@ -573,7 +604,7 @@ void buffer_append_at_cursor(char c) {
         ch->next = tmp;
     }
     lin->size++;
-    cursor_x++;    
+    cursor_x++;
 }
 
 Line *buffer_find_line(size_t index) {
