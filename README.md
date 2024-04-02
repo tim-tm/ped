@@ -118,6 +118,228 @@ Here is a list of all currently supported keybinds.
 | Insert        | Backspace | Delete the character in front of the cursor                                                                          |
 | Insert        | Entf    | Delete the character selected by the cursor                                                                            |
 
+## Concept
+
+### Ped and storing data
+
+Ped stores file data in form of a 2d-doubly-linked-list. This may sound compilcated but it is a good way of optimizing file operations,
+such as adding or removing content from a file.
+
+The general structure looks like this:
+```
+Character
+├── data storage
+│   └── value
+│       └── The actual character that is being stored (e.g. 'a')
+└── references
+    ├── next
+    │   └── Pointer to the next character
+    └── prev
+        └── Pointer to the previous character
+Line
+├── infos
+│   └── size
+│       └── amount of characters
+├── data storage
+│   ├── chars
+│   │   └── every character of a line
+│   ├── first_char
+│   │   └── first char of a line
+│   └── last_char
+│       └── last char of a line
+└── references
+    ├── next
+    │   └── Pointer to the next line
+    └── prev
+        └── Pointer to the previous line
+Buffer
+├── infos
+│   ├── filename
+│   │   └── Name of the buffer (file) being read from/being written to
+│   └── size
+│       └── amount of lines
+└── data storage
+    ├── lines
+    │   └── every line of the buffer (file)
+    ├── first_line
+    │   └── the first line
+    └── last_line
+        └── the last line
+```
+
+Example:
+
+> test.txt
+> ```
+> hi!
+> qa!
+> ```
+
+The [serialized](https://en.wikipedia.org/wiki/Serialization) data would look like this:
+
+```
+Buffer
+├── filename
+│   └── "test.txt"
+├── size
+│   └── 2
+├── lines
+│   ├── size
+│   │   └── 4
+│   ├── chars
+│   │   ├── 'h'
+│   │   ├── next
+│   │   │   ├── 'i'
+│   │   │   ├── next
+│   │   │   │   ├── '!'
+│   │   │   │   ├── next
+│   │   │   │   │   ├── '\n'
+│   │   │   │   │   ├── next
+│   │   │   │   │   │   └── none
+│   │   │   │   │   └── prev
+│   │   │   │   │       ├── '!'
+│   │   │   │   │       └── ...
+│   │   │   │   └── prev
+│   │   │   │       ├── 'i'
+│   │   │   │       └── ...
+│   │   │   └── prev
+│   │   │       ├── 'h'
+│   │   │       └── ...
+│   │   └── prev
+│   │       └── none
+│   ├── first_char
+│   │   ├── 'h'
+│   │   ├── next
+│   │   │   └── ...
+│   │   └── prev
+│   │       └── none
+│   ├── last_char
+│   │   ├── '\n'
+│   │   ├── next
+│   │   │   └── none
+│   │   └── prev
+│   │       └── ...
+│   ├── next
+│   │   ├── size
+│   │   │   └── 4
+│   │   ├── chars
+│   │   │   ├── 'q'
+│   │   │   ├── next
+│   │   │   │   ├── 'a'
+│   │   │   │   ├── next
+│   │   │   │   │   ├── '!'
+│   │   │   │   │   ├── next
+│   │   │   │   │   │   ├── '\n'
+│   │   │   │   │   │   ├── next
+│   │   │   │   │   │   │   └── none
+│   │   │   │   │   │   └── prev
+│   │   │   │   │   │       ├── '!'
+│   │   │   │   │   │       └── ...
+│   │   │   │   │   └── prev
+│   │   │   │   │       ├── 'a'
+│   │   │   │   │       └── ...
+│   │   │   │   └── prev
+│   │   │   │       ├── 'q'
+│   │   │   │       └── ...
+│   │   │   └── prev
+│   │   │       └── none
+│   │   ├── first_char
+│   │   │   ├── 'h'
+│   │   │   ├── next
+│   │   │   │   └── ...
+│   │   │   └── prev
+│   │   │       └── none
+│   │   ├── last_char
+│   │   │   ├── '\n'
+│   │   │   ├── next
+│   │   │   │   └── none
+│   │   │   └── prev
+│   │   │       └── ...
+│   │   └── next
+│   │       └── none
+│   └── prev
+│       └── none
+├── first_line
+│   ├── size
+│   │   └── 4
+│   ├── chars
+│   │   ├── 'h'
+│   │   ├── next
+│   │   │   └── ...
+│   │   └── prev
+│   │       └── none
+│   ├── first_char
+│   │   ├── 'h'
+│   │   ├── next
+│   │   │   └── ...
+│   │   └── prev
+│   │       └── none
+│   ├── last_char
+│   │   ├── '\n'
+│   │   ├── next
+│   │   │   └── none
+│   │   └── prev
+│   │       └── ...
+│   ├── next
+│   │   └── ...
+│   └── prev
+│       └── none
+└── last_line
+    ├── size
+    │   └── 4
+    ├── chars
+    │   ├── 'q'
+    │   ├── next
+    │   │   └── ...
+    │   └── prev
+    │       └── none
+    ├── first_char
+    │   ├── 'q'
+    │   ├── next
+    │   │   └── ...
+    │   └── prev
+    │       └── none
+    ├── last_char
+    │   ├── '\n'
+    │   ├── next
+    │   │   └── none
+    │   └── prev
+    │       └── ...
+    ├── next
+    │   └── ...
+    └── prev
+        └── none
+```
+
+This way of storing file-data comes with advantages and disadvantages though.
+It is easier to mainipulate, insert and append buffer content (Lines, Chars) because you only need to change references.
+The main downside is the serialization and deserialization, that process is way more complex than just copying a string,
+which is what you would do if you were to use an array of strings.
+
+Manipulation example:
+
+> Original text
+> ```
+> abc
+> ```
+> Pointer structure: a&rarr;b&rarr;c
+
+> Should be changed to
+> ```
+> ac
+> ```
+> Pointer structure: a&rarr;b&rarr;c
+
+In order to change the original text to the new text, we only need to point 'a' to 'c' instead of pointing it to 'b' and 'b' pointing to 'c'.
+If we stored our data in a 2d-array, we would need to erase 'b' and move every character after 'b' to the left by one in order to fill gaps.
+
+Finding the right character inside of the linked-list takes O(n) time at most, accessing an array takes a constant amount of time (O(1)).
+Moving memory however is a expensive operation that needs to be done for n characters at most.
+Changing the reference of a character only needs to be done once.
+
+Even though linked-lists are faster to manipulate, this is a choice of preference.
+It is definetly much more simple to store buffer data in an array of strings.
+
 ## Contributing
 
 Steps to contribution:
