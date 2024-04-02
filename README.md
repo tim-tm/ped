@@ -11,6 +11,25 @@ Ped is a vim-like editor made for the terminal using ncurses.
 
 As soon as ped gets usable, it will be available in the AUR. For now it is not available via. any package manager.
 
+### Release page
+
+If your favourite package manager is not yet supported, try downloading a release tarball from the [releases page](https://github.com/tim-tm/ped/releases).
+
+Unzipping the tarball
+```sh
+tar -xf ped-VERSION.tar.gz && cd ped-VERSION
+```
+
+Configuring and building ped from the tarball
+```sh
+./configure && make
+```
+
+Installing
+```sh
+sudo make install
+```
+
 ### Building on your own
 
 **Prerequisites**
