@@ -17,11 +17,34 @@ enum Mode {
     MODE_SEARCH = 3
 };
 
+typedef struct _Character_ {
+    char value;
+
+    struct _Character_ *next;
+    struct _Character_ *prev;
+} Character;
+
+typedef struct _Line_ {
+    size_t size;
+    Character *chars;
+    Character *first_char;
+    Character *last_char;
+
+    struct _Line_ *next;
+    struct _Line_ *prev;
+} Line;
+
+typedef struct _Buffer_ {
+    char *filename;
+    
+    size_t size;
+    Line *lines;
+    Line *first_line;
+    Line *last_line;
+} Buffer;
+
 FILE *fp;
-char *filename;
-size_t fbuf_max = 64;
-size_t fbuf_count;
-char **fbuf;
+Buffer buf = {0};
 
 size_t cursor_x = 0;
 size_t cursor_y = 0;
@@ -37,7 +60,9 @@ const char *mode_get_name(enum Mode mode);
 
 void buffer_free(void);
 bool buffer_save(char *filename);
-void buffer_insert_char(char c);
+void buffer_append_at_cursor(char c);
+Line *buffer_find_line(size_t index);
+Character *line_find_char(Line *lin, size_t index);
 
 int main(int argc, char **argv) {
     if (argc <= 1 || argv[1] == NULL) {
@@ -50,29 +75,50 @@ int main(int argc, char **argv) {
             printf("Failed to open file: %s\n", argv[1]);
             return 1;
         }
-        filename = argv[1];
+        buf.filename = argv[1];
 
-        fbuf = calloc(fbuf_max, sizeof(char*));
-        if (fbuf == NULL) {
-            printf("Failed to allocate space for buffer.\n");
-            return 1;
-        }
         char str[512];
-        for (fbuf_count = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++fbuf_count) {
-            if (fbuf_count >= fbuf_max) {
-                fbuf_max *= 2;
-                fbuf = realloc(fbuf, fbuf_max*sizeof(char*));
-            }
-            fbuf[fbuf_count] = calloc(MAX_LINE_SIZE, sizeof(char));
-            if (fbuf[fbuf_count] == NULL) {
+        for (buf.size = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++buf.size) {
+            Line *lin = calloc(1, sizeof(Line));
+            if (lin == NULL) {
                 printf("Failed to allocate space for buffer.\n");
                 return 1;
             }
-            strncpy(fbuf[fbuf_count], str, 512);
+
+            size_t len = strnlen(str, MAX_LINE_SIZE);
+            Character *itr = lin->chars;
+            for (lin->size = 0; lin->size < len; ++lin->size) {
+                Character *tmp = calloc(1, sizeof(Character));
+                if (tmp == NULL) {
+                    printf("Failed to allocate space for buffer.\n");
+                    return 1;
+                }
+                tmp->value = str[lin->size];
+                
+                if (lin->size == 0) {
+                    lin->first_char = tmp;
+                    lin->last_char = tmp;
+                } else {
+                    lin->last_char->next = tmp;
+                    tmp->prev = lin->last_char;
+                    lin->last_char = tmp;
+                }
+                itr = tmp;
+            }
+
+            if (buf.lines == NULL) {
+                buf.first_line = lin;
+                buf.last_line = lin;
+            } else {
+                buf.last_line->next = lin;
+                lin->prev = buf.last_line;
+                buf.last_line = lin;
+            }
+            buf.lines = lin;
         }
     }
 
-    size_t line_size = floor(log10(fbuf_count)) + 3;
+    size_t line_size = floor(log10(buf.size)) + 3;
 
     initscr();
     move(cursor_y, cursor_x+line_size+1);
@@ -103,7 +149,8 @@ int main(int argc, char **argv) {
             max_y -= infobar_height;
         }
 
-        for (size_t i = 0; i < fbuf_count; ++i) {
+        Line *itr = buf.first_line;
+        for (size_t i = 0; i < buf.size; ++i) {
             size_t l_size = floor(log10(i+1)) + 1;
             if (cursor_y >= max_y) {
                 scroll_y = cursor_max-max_y+1;
@@ -113,9 +160,16 @@ int main(int argc, char **argv) {
             }
 
             mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu\n", i+1);
-            mvwprintw(text_win, i-scroll_y, 0, "%s", fbuf[i]);
+            if (itr->size != 0) {
+                Character *c_itr = itr->first_char;
+                for (size_t j = 0; j < itr->size; ++j) {
+                    mvwprintw(text_win, i-scroll_y, j, "%c", c_itr->value);
+                    c_itr = c_itr->next;
+                }
+            }
+            itr = itr->next;
         }
-        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), filename);
+        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), buf.filename);
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
@@ -136,7 +190,7 @@ int main(int argc, char **argv) {
                 switch (c) {
                     case KEY_DOWN:
                     case 'j': {
-                        if (cursor_y < fbuf_count-1) {
+                        if (cursor_y < buf.size-1) {
                             cursor_y++;
                             cursor_x = 0;
                             if (cursor_y > max_y && cursor_y >= cursor_max) {
@@ -156,11 +210,7 @@ int main(int argc, char **argv) {
                     } break;
                     case KEY_RIGHT:
                     case 'l': {
-                        char *curr_line = fbuf[cursor_y];
-                        size_t len = strnlen(curr_line, MAX_LINE_SIZE);
-                        if (cursor_x < len-1) {
-                            cursor_x++;
-                        }
+                        cursor_x++;
                     } break;
                     case KEY_LEFT:
                     case 'h': {
@@ -178,7 +228,7 @@ int main(int argc, char **argv) {
                         current_mode = MODE_SEARCH;
                     } break;
                     case CTRL('s'): {
-                        if (buffer_save(filename)) {
+                        if (buffer_save(buf.filename)) {
                             close_requested = true;
                         } else {
                             info_msg = "Failed to save file!";
@@ -189,7 +239,7 @@ int main(int argc, char **argv) {
             case MODE_INSERT: {
                 switch (c) {
                     case KEY_DOWN: {
-                        if (cursor_y < fbuf_count-1) {
+                        if (cursor_y < buf.size-1) {
                             cursor_y++;
                             cursor_x = 0;
                             if (cursor_y > max_y && cursor_y >= cursor_max) {
@@ -207,9 +257,8 @@ int main(int argc, char **argv) {
                         }
                     } break;
                     case KEY_RIGHT: {
-                        char *curr_line = fbuf[cursor_y];
-                        size_t len = strnlen(curr_line, MAX_LINE_SIZE);
-                        if (cursor_x < len-1) {
+                        Line *lin = buffer_find_line(cursor_y);
+                        if (lin != NULL && cursor_x < lin->size-1) {
                             cursor_x++;
                         }
                     } break;
@@ -221,20 +270,43 @@ int main(int argc, char **argv) {
                     case KEY_ESCAPE: {
                         current_mode = MODE_NORMAL;
                     } break;
+                    case KEY_DC: {
+                        Line *lin = buffer_find_line(cursor_y);
+                        if (lin == NULL || lin->size <= 0) break;
+                        
+                        Character *ch = line_find_char(lin, cursor_x);
+                        if (ch == NULL) break;
+                        if (ch == lin->first_char) {
+                            lin->first_char = ch->next;
+                        } else {
+                            ch->next->prev = ch->prev;
+                            ch->prev->next = ch->next;
+                        }
+                        free(ch);
+                        lin->size--;
+                    } break;
                     case KEY_BACKSPACE: {
-                        if (cursor_x <= 0) break;
-                        size_t len = 0;
-                        if ((len = strlen(fbuf[cursor_y])) <= 0) break;
-
-                        char *from = &fbuf[cursor_y][cursor_x];
-                        memmove(from-1, from, len-cursor_x);
+                        Line *lin = buffer_find_line(cursor_y);
+                        if (lin == NULL || lin->size <= 0) break;
+                        
+                        long long del_x_index = cursor_x-1;
+                        Character *ch = line_find_char(lin, del_x_index);
+                        if (ch == NULL) break;
+                        if (ch == lin->first_char) {
+                            lin->first_char = ch->next;
+                        } else {
+                            ch->next->prev = ch->prev;
+                            ch->prev->next = ch->next;
+                        }
+                        free(ch);
+                        lin->size--;
                         cursor_x--;
                     } break;
                     case KEY_TAB: {
-                        buffer_insert_char('\t');
+                        buffer_append_at_cursor('\t');
                     } break;
                     default: {
-                        buffer_insert_char(c);
+                        buffer_append_at_cursor(c);
                     } break;
                 }
             } break;
@@ -274,10 +346,18 @@ const char *mode_get_name(enum Mode mode) {
 }
 
 void buffer_free(void) {
-    for (size_t i = 0; i < fbuf_count; ++i) {
-        if (fbuf[i] != NULL) free(fbuf[i]);
+    Line *line_itr = buf.first_line;
+    while (line_itr != NULL) {
+        Line *next_line_itr = line_itr->next;
+        Character *char_itr = line_itr->first_char;
+        while (char_itr != NULL) {
+            Character *next_char_itr = char_itr->next;
+            free(char_itr);
+            char_itr = next_char_itr;
+        }
+        free(line_itr);
+        line_itr = next_line_itr;
     }
-    if (fbuf != NULL) free(fbuf);
 }
 
 bool buffer_save(char *filename) {
@@ -291,20 +371,54 @@ bool buffer_save(char *filename) {
         return false;
     }
 
-    for (size_t i = 0; i < fbuf_count; ++i) {
-        fprintf(fp, "%s", fbuf[i]);
+    Line *line_itr = buf.first_line;
+    while (line_itr != NULL) {
+        Character *char_itr = line_itr->first_char;
+        while (char_itr != NULL) {
+            fprintf(fp, "%c", char_itr->value);
+            char_itr = char_itr->next;
+        }
+        line_itr = line_itr->next;
     }
     fclose(fp);
     return true;
 }
 
-void buffer_insert_char(char c) {
-    if (cursor_y >= fbuf_count || cursor_x > MAX_LINE_SIZE) return;
+void buffer_append_at_cursor(char c) {
+    if (cursor_y >= buf.size || cursor_x > MAX_LINE_SIZE) return;  
+    Line *lin = buffer_find_line(cursor_y);
+    if (lin == NULL || lin->size >= MAX_LINE_SIZE) return;
     
-    size_t len = 0;
-    if ((len = strlen(fbuf[cursor_y])) >= MAX_LINE_SIZE) return;
+    Character *ch = line_find_char(lin, cursor_x);
+    if (ch == NULL) return;
 
-    char *from = &fbuf[cursor_y][cursor_x];
-    memmove(from+1, from, len-cursor_x);
-    fbuf[cursor_y][cursor_x++] = c;
+    Character *tmp = calloc(1, sizeof(Character));
+    if (tmp == NULL) return;
+    tmp->value = c;
+    tmp->next = ch->next;
+    tmp->prev = ch;
+    ch->next = tmp;
+    lin->size++;
+    cursor_x++;    
+}
+
+Line *buffer_find_line(size_t index) {
+    Line *itr = buf.first_line;
+    for (size_t i = 0; i < buf.size && itr != NULL; ++i, itr = itr->next) {
+        if (i == index) {
+            return itr;
+        }
+    }
+    return NULL;
+}
+
+Character *line_find_char(Line *lin, size_t index) {
+    if (lin == NULL) return NULL;
+    Character *itr = lin->first_char;
+    for (size_t i = 0; i < lin->size && itr != NULL; ++i, itr = itr->next) {
+        if (i == index) {
+            return itr;
+        }
+    }
+    return NULL;
 }
