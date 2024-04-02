@@ -9,6 +9,9 @@ Ped is a vim-like editor made for the terminal using ncurses.
 
 ### Package managers
 
+> [!WARNING]
+> Ped is still in a every early state of development, expect bugs or flaws
+
 [AUR Package](https://aur.archlinux.org/packages/ped)
 ```sh
 yay -S ped
