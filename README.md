@@ -117,10 +117,10 @@ Ped uses different modes, just like vim or other similar editors do.
 
 | **Mode** | **Purpose**                                                                                                                                                           | **State**             |
 |:--------:|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
-| Normal   | The normal mode is the starting point of the editor,<br>you can navigate around and access every mode from here,<br>take a look at the keyboard shortcuts for more information. | Partially implemented |
-| Insert   | As the name implies, the insert mode is made for inserting<br>characters into a buffer (file).                                                                        | Partially implemented   |
-| Visual   | The visual mode is useful for selecting and moving bigger<br>pieces of file data.                                                                                     | not yet implemented   |
-| Search   | The search mode makes it possible to search inside of<br>buffers (files).                                                                                             | not yet implemented   |
+| Normal   | The normal mode is the starting point of the editor, you can navigate around and access every mode from here, take a look at the keyboard shortcuts for more information. | Partially implemented |
+| Insert   | As the name implies, the insert mode is made for inserting characters into a buffer (file).                                                                        | Partially implemented   |
+| Visual   | The visual mode is useful for selecting and moving bigger pieces of file data.                                                                                     | not yet implemented   |
+| Search   | The search mode makes it possible to search inside of buffers (files).                                                                                             | not yet implemented   |
 
 Here is a list of all currently supported keybinds.
 
