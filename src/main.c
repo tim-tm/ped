@@ -53,6 +53,7 @@ size_t max_y = 0;
 size_t max_x = 0;
 size_t scroll_y = 0;
 size_t cursor_max = 0;
+size_t line_size = 0;
 char *info_msg = NULL;
 
 enum Mode current_mode = MODE_NORMAL;
@@ -176,7 +177,7 @@ int main(int argc, char **argv) {
 
     // hacky thing to calculate the length of an integer
     // Example: 1234 -> 4, 12 -> 2, 62332 -> 5
-    size_t line_size = floor(log10(buf.size)) + 3;
+    line_size = floor(log10(buf.size)) + 3;
 
     initscr();
     move(cursor_y, cursor_x+line_size+1);
@@ -217,7 +218,7 @@ int main(int argc, char **argv) {
                 scroll_y = 0;
             }
 
-            mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu\n", i+1);
+            mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu", i+1);
             if (itr->size != 0) {
                 Character *c_itr = itr->first_char;
                 for (size_t j = 0; j < itr->size; ++j) {
@@ -360,7 +361,7 @@ int main(int argc, char **argv) {
                     case KEY_BACKSPACE: {
                         Line *lin = buffer_find_line(cursor_y);
                         if (lin == NULL) break;
-                        if (lin->size <= 0) {
+                        if (lin->size <= 0 && lin != buf.last_line && lin != buf.first_line) {
                             if (lin == buf.first_line) {
                                 buf.first_line = lin->next;
                             } else {
@@ -369,6 +370,12 @@ int main(int argc, char **argv) {
                             }
                             free(lin);
                             buf.size--;
+
+                            // Update rendering vars
+                            line_size = floor(log10(buf.size)) + 3;
+                            if (cursor_y <= scroll_y) {
+                                cursor_max--;
+                            }
                             break;
                         }
 
@@ -405,23 +412,36 @@ int main(int argc, char **argv) {
 
                         Line *lin = calloc(1, sizeof(Line));
                         if (lin == NULL) break;
-                        // Example:
-                        // 'a' is being placed between 'c' and 'd'
-                        //      b <-> c <-> d
-                        
-                        //      b <-> c  a -> d
-                        lin->next = curr_lin->next;
-                        
-                        //      b <-> c <- a -> d
-                        lin->prev = curr_lin;
-                        
-                        //      b <-> c <- a <-> d
-                        curr_lin->next->prev = lin;
-                        
-                        //      b <-> c <-> a <-> d
-                        curr_lin->next = lin;
+
+                        if (curr_lin == buf.last_line) {
+                            buf.last_line->next = lin;
+                            lin->prev = buf.last_line;
+                            buf.last_line = lin;
+                        } else {
+                            // Example:
+                            // 'a' is being placed between 'c' and 'd'
+                            //      b <-> c <-> d
+                            
+                            //      b <-> c  a -> d
+                            lin->next = curr_lin->next;
+                            
+                            //      b <-> c <- a -> d
+                            lin->prev = curr_lin;
+                            
+                            //      b <-> c <- a <-> d
+                            curr_lin->next->prev = lin;
+                            
+                            //      b <-> c <-> a <-> d
+                            curr_lin->next = lin;
+                        }
                         buf.size++;
                         cursor_y++;
+                        
+                        // Update rendering vars
+                        line_size = floor(log10(buf.size)) + 3;
+                        if (cursor_y > max_y && cursor_y >= cursor_max) {
+                            cursor_max++;
+                        }
                     } break;
                     default: {
                         buffer_append_at_cursor(c);
@@ -464,11 +484,25 @@ const char *mode_get_name(enum Mode mode) {
 }
 
 bool buffer_read_from_file(char *path) {
-    // NOTE: The file will be opened later for writing
     fp = fopen(path, "r");
     if (fp == NULL) {
-        printf("Failed to open file: %s\n", path);
-        return false;
+        fp = fopen(path, "w+");
+        if (fp != NULL) {   
+            Line *lin = calloc(1, sizeof(Line));
+            if (lin == NULL) {
+                printf("Failed to allocate space for buffer.\n");
+                return false;
+            }
+            buf.first_line = lin;
+            buf.last_line = lin;
+            buf.lines = lin;
+            buf.file_path = path;
+            buf.size++;
+            return true;
+        } else {
+            printf("Failed to create file: %s\n", path);
+            return false;
+        }
     }
     buf.file_path = path;
 
