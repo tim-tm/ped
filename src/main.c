@@ -436,6 +436,7 @@ int main(int argc, char **argv) {
                         }
                         buf.size++;
                         cursor_y++;
+                        cursor_x = 0;
                         
                         // Update rendering vars
                         line_size = floor(log10(buf.size)) + 3;
