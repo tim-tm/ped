@@ -22,8 +22,6 @@ enum Mode {
 
 Buffer buf = {0};
 
-size_t scroll_y = 0;
-size_t cursor_max = 0;
 size_t line_size = 0;
 size_t max_y = 0;
 size_t max_x = 0;
@@ -62,7 +60,7 @@ int main(int argc, char **argv) {
     keypad(infobar_win, TRUE);
     
     max_y -= infobar_height;
-    cursor_max = max_y;
+    buf.cursor_max = max_y;
 
     int c;
     bool close_requested = false;
@@ -85,17 +83,17 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < buf.size; ++i) {
             size_t l_size = floor(log10(i+1)) + 1;
             if (buf.cursor_y >= max_y) {
-                scroll_y = cursor_max-max_y+1;
+                buf.scroll_y = buf.cursor_max-max_y+1;
             } else {
                 // FIXME: This causes a weird clipping that should be removed
-                scroll_y = 0;
+                buf.scroll_y = 0;
             }
 
-            mvwprintw(line_win, i-scroll_y, line_size-2-l_size, "%zu", i+1);
+            mvwprintw(line_win, i-buf.scroll_y, line_size-2-l_size, "%zu", i+1);
             if (itr->size != 0) {
                 Character *c_itr = itr->first_char;
                 for (size_t j = 0; j < itr->size; ++j) {
-                    mvwprintw(text_win, i-scroll_y, j, "%c", c_itr->value);
+                    mvwprintw(text_win, i-buf.scroll_y, j, "%c", c_itr->value);
                     c_itr = c_itr->next;
                 }
             }
@@ -105,7 +103,7 @@ int main(int argc, char **argv) {
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
-        move(buf.cursor_y-scroll_y, buf.cursor_x+line_size);
+        move(buf.cursor_y-buf.scroll_y, buf.cursor_x+line_size);
 
         wrefresh(line_win);
         wrefresh(text_win);
@@ -122,36 +120,19 @@ int main(int argc, char **argv) {
                 switch (c) {
                     case KEY_DOWN:
                     case 'j': {
-                        if (buf.cursor_y < buf.size-1) {
-                            buf.cursor_y++;
-                            buf.cursor_x = 0;
-                            if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
-                                cursor_max++;
-                            }
-                        }
+                        buffer_move_cursor_down(&buf, max_y);
                     } break;
                     case KEY_UP:
                     case 'k': {
-                        if (buf.cursor_y > 0) {
-                            buf.cursor_y--;
-                            buf.cursor_x = 0;
-                            if (buf.cursor_y <= scroll_y) {
-                                cursor_max--;
-                            }
-                        }
+                        buffer_move_cursor_up(&buf);
                     } break;
                     case KEY_RIGHT:
                     case 'l': {
-                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
-                        if (lin != NULL && buf.cursor_x < lin->size-1) {
-                            buf.cursor_x++;
-                        }
+                        buffer_move_cursor_right(&buf);
                     } break;
                     case KEY_LEFT:
                     case 'h': {
-                        if (buf.cursor_x > 0) {
-                            buf.cursor_x--;
-                        }
+                        buffer_move_cursor_left(&buf);
                     } break;
                     case 'a': {
                         current_mode = MODE_INSERT;
@@ -174,38 +155,22 @@ int main(int argc, char **argv) {
             case MODE_INSERT: {
                 switch (c) {
                     case KEY_DOWN: {
-                        if (buf.cursor_y < buf.size-1) {
-                            buf.cursor_y++;
-                            buf.cursor_x = 0;
-                            if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
-                                cursor_max++;
-                            }
-                        }
+                        buffer_move_cursor_down(&buf, max_y);
                     } break;
                     case KEY_UP: {
-                        if (buf.cursor_y > 0) {
-                            buf.cursor_y--;
-                            buf.cursor_x = 0;
-                            if (buf.cursor_y <= scroll_y) {
-                                cursor_max--;
-                            }
-                        }
+                        buffer_move_cursor_up(&buf);
                     } break;
                     case KEY_RIGHT: {
-                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
-                        if (lin != NULL && buf.cursor_x < lin->size-1) {
-                            buf.cursor_x++;
-                        }
+                        buffer_move_cursor_right(&buf);
                     } break;
                     case KEY_LEFT: {
-                        if (buf.cursor_x > 0) {
-                            buf.cursor_x--;
-                        }
+                        buffer_move_cursor_left(&buf);
                     } break;
                     case KEY_ESCAPE: {
                         current_mode = MODE_NORMAL;
                     } break;
                     case KEY_DC: {
+                        // TODO: This should be moved into a buffer.h function
                         Line *lin = buffer_find_line(&buf, buf.cursor_y);
                         if (lin == NULL || lin->size <= 0) break;
                         
@@ -232,6 +197,7 @@ int main(int argc, char **argv) {
                         lin->size--;
                     } break;
                     case KEY_BACKSPACE: {
+                        // TODO: This should be moved into a buffer.h function
                         Line *lin = buffer_find_line(&buf, buf.cursor_y);
                         if (lin == NULL) break;
                         if (lin->size <= 0 && lin != buf.last_line && lin != buf.first_line) {
@@ -246,8 +212,8 @@ int main(int argc, char **argv) {
 
                             // Update rendering vars
                             line_size = floor(log10(buf.size)) + 3;
-                            if (buf.cursor_y <= scroll_y) {
-                                cursor_max--;
+                            if (buf.cursor_y <= buf.scroll_y) {
+                                buf.cursor_max--;
                             }
                             break;
                         }
@@ -277,9 +243,10 @@ int main(int argc, char **argv) {
                         buf.cursor_x--;
                     } break;
                     case KEY_TAB: {
-                        buffer_append_at_cursor(&buf, '\t');
+                        buffer_append_char_at_cursor(&buf, '\t');
                     } break;
                     case KEY_ENTER1: {
+                        // TODO: This should be moved into a buffer.h function
                         Line *curr_lin = buffer_find_line(&buf, buf.cursor_y);
                         if (curr_lin == NULL) break;
 
@@ -313,12 +280,12 @@ int main(int argc, char **argv) {
                         
                         // Update rendering vars
                         line_size = floor(log10(buf.size)) + 3;
-                        if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
-                            cursor_max++;
+                        if (buf.cursor_y > max_y && buf.cursor_y >= buf.cursor_max) {
+                            buf.cursor_max++;
                         }
                     } break;
                     default: {
-                        buffer_append_at_cursor(&buf, c);
+                        buffer_append_char_at_cursor(&buf, c);
                     } break;
                 }
             } break;

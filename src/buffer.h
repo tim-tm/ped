@@ -29,6 +29,8 @@ typedef struct _Buffer_ {
     
     size_t cursor_x;
     size_t cursor_y;
+    size_t cursor_max;
+    size_t scroll_y;
     
     size_t size;
     Line *lines;
@@ -36,6 +38,19 @@ typedef struct _Buffer_ {
     Line *last_line;
 } Buffer;
 
+// All static methods are for internal purposes and not exposed to the one including buffer.h
+
+/**
+ *  buffer_init_empty(buf, path)
+ *
+ *  Purpose:
+ *      This function inits the specified buffer with
+ *      one empty line. Note that this function is using
+ *      printf to print an error if occoured.
+ *  Return value:
+ *      true - Init was successful
+ *      false - Init failed
+ */
 static bool buffer_init_empty(Buffer *buf, char *path);
 
 /**
@@ -87,7 +102,7 @@ bool buffer_save(Buffer *buf, char *path);
  *  Return value:
  *      void
  */
-void buffer_append_at_cursor(Buffer *buf, char c);
+void buffer_append_char_at_cursor(Buffer *buf, char c);
 
 /**
  *  buffer_find_line(buf, index)
@@ -112,5 +127,50 @@ Line *buffer_find_line(Buffer *buf, size_t index);
  *      Character* - the char at the specified index
  */
 Character *line_find_char(Buffer *buf, Line *lin, size_t index);
+
+/**
+ *  buffer_move_cursor_down(buf, max_y)
+ *
+ *  Purpose:
+ *      Calling this function moves the buffer's cursor down by
+ *      one if possible. The param 'max_y' should be the size
+ *      of the text-field being drawn.
+ *  Return value:
+ *      void
+ */
+void buffer_move_cursor_down(Buffer *buf, size_t max_y);
+
+/**
+ *  buffer_move_cursor_up(buf)
+ *
+ *  Purpose:
+ *      Calling this function moves the buffer's cursor up by
+ *      one if possible.
+ *  Return value:
+ *      void
+ */
+void buffer_move_cursor_up(Buffer *buf);
+
+/**
+ *  buffer_move_cursor_right(buf)
+ *
+ *  Purpose:
+ *      Calling this function moves the buffer's cursor right by
+ *      one if possible.
+ *  Return value:
+ *      void
+ */
+void buffer_move_cursor_right(Buffer *buf);
+
+/**
+ *  buffer_move_cursor_left(buf)
+ *
+ *  Purpose:
+ *      Calling this function moves the buffer's cursor left by
+ *      one if possible.
+ *  Return value:
+ *      void
+ */
+void buffer_move_cursor_left(Buffer *buf);
 
 #endif // _BUFFER_H_

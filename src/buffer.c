@@ -136,7 +136,7 @@ bool buffer_save(Buffer *buf, char *path) {
     return true;
 }
 
-void buffer_append_at_cursor(Buffer *buf, char c) {
+void buffer_append_char_at_cursor(Buffer *buf, char c) {
     if (buf == NULL) return;
     if (buf->cursor_y >= buf->size || buf->cursor_x > BUFFER_MAX_LINE_SIZE) return;  
     Line *lin = buffer_find_line(buf, buf->cursor_y);
@@ -207,4 +207,38 @@ Character *line_find_char(Buffer *buf, Line *lin, size_t index) {
         }
     }
     return NULL;
+}
+
+void buffer_move_cursor_down(Buffer *buf, size_t max_y) {
+    if (buf != NULL && buf->cursor_y < buf->size-1) {
+        buf->cursor_y++;
+        buf->cursor_x = 0;
+        if (buf->cursor_y > max_y && buf->cursor_y >= buf->cursor_max) {
+            buf->cursor_max++;
+        }
+    }
+}
+
+void buffer_move_cursor_up(Buffer *buf) {
+    if (buf != NULL && buf->cursor_y > 0) {
+        buf->cursor_y--;
+        buf->cursor_x = 0;
+        if (buf->cursor_y <= buf->scroll_y) {
+            buf->cursor_max--;
+        }
+    }
+}
+
+void buffer_move_cursor_right(Buffer *buf) {
+    if (buf == NULL) return;
+    Line *lin = buffer_find_line(buf, buf->cursor_y);
+    if (lin != NULL && lin->size != 0 && buf->cursor_x < lin->size-1) {
+        buf->cursor_x++;
+    }
+}
+
+void buffer_move_cursor_left(Buffer *buf) {
+    if (buf != NULL && buf->cursor_x > 0) {
+        buf->cursor_x--;
+    }
 }
