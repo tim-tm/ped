@@ -5,6 +5,8 @@
 #include <ncurses.h>
 #include <math.h>
 
+#include "buffer.h"
+
 #define MAX_LINE_SIZE 512
 #define CTRL(k) ((k)&0x1f)
 #define KEY_ESCAPE 27
@@ -18,159 +20,25 @@ enum Mode {
     MODE_SEARCH = 3
 };
 
-typedef struct _Character_ {
-    char value;
-
-    struct _Character_ *next;
-    struct _Character_ *prev;
-} Character;
-
-typedef struct _Line_ {
-    size_t size;
-    Character *chars;
-    Character *first_char;
-    Character *last_char;
-
-    struct _Line_ *next;
-    struct _Line_ *prev;
-} Line;
-
-typedef struct _Buffer_ {
-    char *file_path;
-    
-    size_t size;
-    Line *lines;
-    Line *first_line;
-    Line *last_line;
-} Buffer;
-
-FILE *fp;
 Buffer buf = {0};
 
-size_t cursor_x = 0;
-size_t cursor_y = 0;
-size_t max_y = 0;
-size_t max_x = 0;
 size_t scroll_y = 0;
 size_t cursor_max = 0;
 size_t line_size = 0;
+size_t max_y = 0;
+size_t max_x = 0;
 char *info_msg = NULL;
 
 enum Mode current_mode = MODE_NORMAL;
 
 const char *mode_get_name(enum Mode mode);
 
-/**
- *  buffer_read_from_file(path)
- *
- *  Purpose:
- *      This function reads the contents of a file
- *      at the given path into the main buffer.
- *      Note that this function is using printf to
- *      print an error if occoured.
- *  Return value:
- *      true - Reading was successful
- *      false - Reading was not successful
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      buffer_read_from_file(buffer, path)
- */
-bool buffer_read_from_file(char *path);
-
-/**
- *  buffer_free()
- *
- *  Purpose:
- *      This function free's all of the memory allocated
- *      by buffer_read_from_file.
- *  Return value:
- *      void
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      buffer_free(buffer)
- */
-void buffer_free(void);
-
-/**
- *  buffer_save(path)
- *
- *  Purpose:
- *      This function writes the content of the main buffer
- *      to the file being specified by 'path'.
- *      Note that this function is not using printf to
- *      print an error if occoured.
- *  Return value:
- *      true - Successfully saved the file
- *      false - There was an error while saving the file
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      buffer_save(buffer, path)
- */
-bool buffer_save(char *path);
-
-/**
- *  buffer_append_at_cursor(c)
- *
- *  Purpose:
- *      This function appends a character 'c' to the line
- *      selected by the user, which is being stored in
- *      'cursor_y'.
- *  Return value:
- *      void
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      buffer_append_at_cursor(buffer, c)
- */
-void buffer_append_at_cursor(char c);
-
-/**
- *  buffer_find_line(index)
- *
- *  Purpose:
- *      This function finds a line inside of the main buffer
- *      given it's index.
- *  Return value:
- *      NULL - the line could not be found
- *      Line* - the line at the specified index
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      buffer_find_line(buffer, index)
- */
-Line *buffer_find_line(size_t index);
-
-/**
- *  line_find_char(lin, index)
- *
- *  Purpose:
- *      This function finds a character inside of the specified
- *      line 'lin' at the given index.
- *  Return value:
- *      NULL - the char could not be found
- *      Character* - the char at the specified index
- *  Possible extension:
- *      Requring the caller to specify the buffer could
- *      be good for implementing a multi-buffer system.
- *      A new function signature may look like this:
- *      line_find_char(buffer, lin, index)
- */
-Character *line_find_char(Line *lin, size_t index);
-
 int main(int argc, char **argv) {
     if (argc <= 1 || argv[1] == NULL) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;
     } else {
-        if (!buffer_read_from_file(argv[1])) {
+        if (!buffer_read_from_file(&buf, argv[1])) {
             return 1;
         }
     }
@@ -180,7 +48,7 @@ int main(int argc, char **argv) {
     line_size = floor(log10(buf.size)) + 3;
 
     initscr();
-    move(cursor_y, cursor_x+line_size+1);
+    move(buf.cursor_y, buf.cursor_x+line_size+1);
     refresh();
     noecho();
     raw();
@@ -208,10 +76,15 @@ int main(int argc, char **argv) {
             max_y -= infobar_height;
         }
 
+        wresize(line_win, max_y, line_size);
+        mvwin(line_win, 0, 0);
+        wresize(text_win, max_y, max_x-line_size);
+        mvwin(text_win, 0, line_size);
+
         Line *itr = buf.first_line;
         for (size_t i = 0; i < buf.size; ++i) {
             size_t l_size = floor(log10(i+1)) + 1;
-            if (cursor_y >= max_y) {
+            if (buf.cursor_y >= max_y) {
                 scroll_y = cursor_max-max_y+1;
             } else {
                 // FIXME: This causes a weird clipping that should be removed
@@ -232,7 +105,7 @@ int main(int argc, char **argv) {
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
-        move(cursor_y-scroll_y, cursor_x+line_size);
+        move(buf.cursor_y-scroll_y, buf.cursor_x+line_size);
 
         wrefresh(line_win);
         wrefresh(text_win);
@@ -249,35 +122,35 @@ int main(int argc, char **argv) {
                 switch (c) {
                     case KEY_DOWN:
                     case 'j': {
-                        if (cursor_y < buf.size-1) {
-                            cursor_y++;
-                            cursor_x = 0;
-                            if (cursor_y > max_y && cursor_y >= cursor_max) {
+                        if (buf.cursor_y < buf.size-1) {
+                            buf.cursor_y++;
+                            buf.cursor_x = 0;
+                            if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
                                 cursor_max++;
                             }
                         }
                     } break;
                     case KEY_UP:
                     case 'k': {
-                        if (cursor_y > 0) {
-                            cursor_y--;
-                            cursor_x = 0;
-                            if (cursor_y <= scroll_y) {
+                        if (buf.cursor_y > 0) {
+                            buf.cursor_y--;
+                            buf.cursor_x = 0;
+                            if (buf.cursor_y <= scroll_y) {
                                 cursor_max--;
                             }
                         }
                     } break;
                     case KEY_RIGHT:
                     case 'l': {
-                        Line *lin = buffer_find_line(cursor_y);
-                        if (lin != NULL && cursor_x < lin->size-1) {
-                            cursor_x++;
+                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
+                        if (lin != NULL && buf.cursor_x < lin->size-1) {
+                            buf.cursor_x++;
                         }
                     } break;
                     case KEY_LEFT:
                     case 'h': {
-                        if (cursor_x > 0) {
-                            cursor_x--;
+                        if (buf.cursor_x > 0) {
+                            buf.cursor_x--;
                         }
                     } break;
                     case 'a': {
@@ -290,7 +163,7 @@ int main(int argc, char **argv) {
                         current_mode = MODE_SEARCH;
                     } break;
                     case CTRL('s'): {
-                        if (buffer_save(buf.file_path)) {
+                        if (buffer_save(&buf, buf.file_path)) {
                             close_requested = true;
                         } else {
                             info_msg = "Failed to save file!";
@@ -301,42 +174,42 @@ int main(int argc, char **argv) {
             case MODE_INSERT: {
                 switch (c) {
                     case KEY_DOWN: {
-                        if (cursor_y < buf.size-1) {
-                            cursor_y++;
-                            cursor_x = 0;
-                            if (cursor_y > max_y && cursor_y >= cursor_max) {
+                        if (buf.cursor_y < buf.size-1) {
+                            buf.cursor_y++;
+                            buf.cursor_x = 0;
+                            if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
                                 cursor_max++;
                             }
                         }
                     } break;
                     case KEY_UP: {
-                        if (cursor_y > 0) {
-                            cursor_y--;
-                            cursor_x = 0;
-                            if (cursor_y <= scroll_y) {
+                        if (buf.cursor_y > 0) {
+                            buf.cursor_y--;
+                            buf.cursor_x = 0;
+                            if (buf.cursor_y <= scroll_y) {
                                 cursor_max--;
                             }
                         }
                     } break;
                     case KEY_RIGHT: {
-                        Line *lin = buffer_find_line(cursor_y);
-                        if (lin != NULL && cursor_x < lin->size-1) {
-                            cursor_x++;
+                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
+                        if (lin != NULL && buf.cursor_x < lin->size-1) {
+                            buf.cursor_x++;
                         }
                     } break;
                     case KEY_LEFT: {
-                        if (cursor_x > 0) {
-                            cursor_x--;
+                        if (buf.cursor_x > 0) {
+                            buf.cursor_x--;
                         }
                     } break;
                     case KEY_ESCAPE: {
                         current_mode = MODE_NORMAL;
                     } break;
                     case KEY_DC: {
-                        Line *lin = buffer_find_line(cursor_y);
+                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
                         if (lin == NULL || lin->size <= 0) break;
                         
-                        Character *ch = line_find_char(lin, cursor_x);
+                        Character *ch = line_find_char(&buf, lin, buf.cursor_x);
                         if (ch == NULL) break;
                         if (ch == lin->first_char) {
                             // Example:
@@ -359,7 +232,7 @@ int main(int argc, char **argv) {
                         lin->size--;
                     } break;
                     case KEY_BACKSPACE: {
-                        Line *lin = buffer_find_line(cursor_y);
+                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
                         if (lin == NULL) break;
                         if (lin->size <= 0 && lin != buf.last_line && lin != buf.first_line) {
                             if (lin == buf.first_line) {
@@ -373,14 +246,14 @@ int main(int argc, char **argv) {
 
                             // Update rendering vars
                             line_size = floor(log10(buf.size)) + 3;
-                            if (cursor_y <= scroll_y) {
+                            if (buf.cursor_y <= scroll_y) {
                                 cursor_max--;
                             }
                             break;
                         }
 
-                        long long del_x_index = cursor_x-1;
-                        Character *ch = line_find_char(lin, del_x_index);
+                        long long del_x_index = buf.cursor_x-1;
+                        Character *ch = line_find_char(&buf, lin, del_x_index);
                         if (ch == NULL) break;
                         if (ch == lin->first_char) {
                             // Example:
@@ -401,13 +274,13 @@ int main(int argc, char **argv) {
                         }
                         free(ch);
                         lin->size--;
-                        cursor_x--;
+                        buf.cursor_x--;
                     } break;
                     case KEY_TAB: {
-                        buffer_append_at_cursor('\t');
+                        buffer_append_at_cursor(&buf, '\t');
                     } break;
                     case KEY_ENTER1: {
-                        Line *curr_lin = buffer_find_line(cursor_y);
+                        Line *curr_lin = buffer_find_line(&buf, buf.cursor_y);
                         if (curr_lin == NULL) break;
 
                         Line *lin = calloc(1, sizeof(Line));
@@ -435,17 +308,17 @@ int main(int argc, char **argv) {
                             curr_lin->next = lin;
                         }
                         buf.size++;
-                        cursor_y++;
-                        cursor_x = 0;
+                        buf.cursor_y++;
+                        buf.cursor_x = 0;
                         
                         // Update rendering vars
                         line_size = floor(log10(buf.size)) + 3;
-                        if (cursor_y > max_y && cursor_y >= cursor_max) {
+                        if (buf.cursor_y > max_y && buf.cursor_y >= cursor_max) {
                             cursor_max++;
                         }
                     } break;
                     default: {
-                        buffer_append_at_cursor(c);
+                        buffer_append_at_cursor(&buf, c);
                     } break;
                 }
             } break;
@@ -471,7 +344,7 @@ int main(int argc, char **argv) {
     delwin(infobar_win);
     endwin();
 
-    buffer_free();
+    buffer_free(&buf);
     return 0;
 }
 
@@ -482,194 +355,4 @@ const char *mode_get_name(enum Mode mode) {
         case MODE_VISUAL: return "VISUAL";
         case MODE_SEARCH: return "SEARCH";
     }
-}
-
-bool buffer_read_from_file(char *path) {
-    fp = fopen(path, "r");
-    if (fp == NULL) {
-        fp = fopen(path, "w+");
-        if (fp != NULL) {   
-            Line *lin = calloc(1, sizeof(Line));
-            if (lin == NULL) {
-                printf("Failed to allocate space for buffer.\n");
-                return false;
-            }
-            buf.first_line = lin;
-            buf.last_line = lin;
-            buf.lines = lin;
-            buf.file_path = path;
-            buf.size++;
-            return true;
-        } else {
-            printf("Failed to create file: %s\n", path);
-            return false;
-        }
-    }
-    buf.file_path = path;
-
-    char str[512];
-    for (buf.size = 0; fgets(str, MAX_LINE_SIZE, fp) != NULL; ++buf.size) {
-        Line *lin = calloc(1, sizeof(Line));
-        if (lin == NULL) {
-            printf("Failed to allocate space for buffer.\n");
-            return false;
-        }
-
-        size_t len = strnlen(str, MAX_LINE_SIZE);
-        Character *itr = lin->chars;
-        // len-1 in order to strip off that \n at the end
-        // we can for sure say that there is always a \n because
-        // fgets only reads in lines
-        for (lin->size = 0; lin->size < len-1; ++lin->size) {
-            Character *tmp = calloc(1, sizeof(Character));
-            if (tmp == NULL) {
-                printf("Failed to allocate space for buffer.\n");
-                return false;
-            }
-            tmp->value = str[lin->size];
-            
-            if (lin->size == 0) {
-                // The first character of a line, both first and last char are set to this char
-                lin->first_char = tmp;
-                lin->last_char = tmp;
-            } else {
-                // Appending to the end
-                //      last -> new
-                //      last <-> new
-                // Updating the last char
-                //      last = new
-                lin->last_char->next = tmp;
-                tmp->prev = lin->last_char;
-                lin->last_char = tmp;
-            }
-            itr = tmp;
-        }
-
-        if (buf.lines == NULL) {
-            // The first line of a buffer, both first and last line are set to this line
-            buf.first_line = lin;
-            buf.last_line = lin;
-        } else {
-            // Appending to the end
-            //      last -> new
-            //      last <-> new
-            // Updating the last char
-            //      last = new
-            buf.last_line->next = lin;
-            lin->prev = buf.last_line;
-            buf.last_line = lin;
-        }
-        buf.lines = lin;
-    }
-    return true;
-}
-
-void buffer_free(void) {
-    Line *line_itr = buf.first_line;
-    while (line_itr != NULL) {
-        Line *next_line_itr = line_itr->next;
-        Character *char_itr = line_itr->first_char;
-        while (char_itr != NULL) {
-            Character *next_char_itr = char_itr->next;
-            free(char_itr);
-            char_itr = next_char_itr;
-        }
-        free(line_itr);
-        line_itr = next_line_itr;
-    }
-}
-
-bool buffer_save(char *path) {
-    if (path == NULL) return false;
-
-    if (fp != NULL) {
-        fclose(fp);
-    }
-    fp = fopen(path, "w+");
-    if (fp == NULL) {
-        return false;
-    }
-
-    Line *line_itr = buf.first_line;
-    while (line_itr != NULL) {
-        Character *char_itr = line_itr->first_char;
-        while (char_itr != NULL) {
-            fprintf(fp, "%c", char_itr->value);
-            char_itr = char_itr->next;
-        }
-        fprintf(fp, "\n");
-        line_itr = line_itr->next;
-    }
-    fclose(fp);
-    return true;
-}
-
-void buffer_append_at_cursor(char c) {
-    if (cursor_y >= buf.size || cursor_x > MAX_LINE_SIZE) return;  
-    Line *lin = buffer_find_line(cursor_y);
-    if (lin == NULL || lin->size >= MAX_LINE_SIZE) return;
-
-    Character *tmp = calloc(1, sizeof(Character));
-    if (tmp == NULL) return;
-    tmp->value = c;
-
-    Character *ch = line_find_char(lin, cursor_x);
-    // the line is empty
-    if (ch == NULL) {
-        lin->first_char = tmp;
-        lin->last_char = tmp;
-        lin->size++;
-        return;
-    }
-
-    // if cursor is at the end of the line
-    if (cursor_x >= lin->size-1) {
-        // Appending to the end
-        //      last -> new
-        //      last <-> new
-        // Updating the last char
-        //      last = new
-        lin->last_char->next = tmp;
-        tmp->prev = lin->last_char;
-        lin->last_char = tmp;
-    } else {
-        // Example:
-        // 'a' is being placed between 'c' and 'd'
-        //      b <-> c <-> d
-        
-        //      b <-> c  a -> d
-        tmp->next = ch->next;
-        
-        //      b <-> c <- a -> d
-        tmp->prev = ch;
-        
-        //      b <-> c <- a <-> d
-        ch->next->prev = tmp;
-        
-        //      b <-> c <-> a <-> d
-        ch->next = tmp;
-    }
-    lin->size++;
-    cursor_x++;
-}
-
-Line *buffer_find_line(size_t index) {
-    Line *itr = buf.first_line;
-    for (size_t i = 0; i < buf.size && itr != NULL; ++i, itr = itr->next) {
-        if (i == index) {
-            return itr;
-        }
-    }
-    return NULL;
-}
-
-Character *line_find_char(Line *lin, size_t index) {
-    if (lin == NULL) return NULL;
-    Character *itr = lin->first_char;
-    for (size_t i = 0; i < lin->size && itr != NULL; ++i, itr = itr->next) {
-        if (i == index) {
-            return itr;
-        }
-    }
-    return NULL;
 }
