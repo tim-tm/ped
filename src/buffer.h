@@ -1,4 +1,5 @@
 #ifndef _BUFFER_H_
+#define _BUFFER_H_
 
 #include <stddef.h>
 #include <stdio.h>
@@ -172,5 +173,79 @@ void buffer_move_cursor_right(Buffer *buf);
  *      void
  */
 void buffer_move_cursor_left(Buffer *buf);
+
+/**
+ *  buffer_delete_char_at_cursor_xy(buf, cursor_x, cursor_y)
+ *
+ *  Purpose:
+ *      Functions exactly the same as buffer_delete_char_at_cursor
+ *      but allows the caller to specify a custom cursor x and y position.
+ *      This function checks for the bounds of the cursor.
+ *  Return value:
+ *      true - Deletion successful
+ *      false - Character could not be deleted
+ */
+bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x, size_t cursor_y);
+
+/**
+ *  buffer_delete_char_at_cursor_x(buf, cursor_x)
+ *
+ *  Purpose:
+ *      Functions exactly the same as buffer_delete_char_at_cursor
+ *      but allows the caller to specify a custom cursor_x.
+ *      This function checks for the bounds of the cursor.
+ *  Return value:
+ *      true - Deletion successful
+ *      false - Character could not be deleted
+ */
+bool buffer_delete_char_at_cursor_x(Buffer *buf, size_t cursor_x);
+
+/**
+ *  buffer_delete_char_at_cursor(buf)
+ *
+ *  Purpose:
+ *      Deletes a character at the current cursor position.
+ *      This function checks for the bounds of the cursor.
+ *  Return value:
+ *      true - Deletion successful
+ *      false - Character could not be deleted
+ */
+bool buffer_delete_char_at_cursor(Buffer *buf);
+
+/**
+ *  buffer_delete_line(buf, lin)
+ *
+ *  Purpose:
+ *      Delete the specified line 'lin' from the given buffer
+ *      'buf'.
+ *  Return value:
+ *      true - Deletion successful
+ *      false - Line could not be deleted
+ */
+bool buffer_delete_line(Buffer *buf, Line *lin);
+
+/**
+ *  buffer_insert_line_at_cursor_y(buf, cursor_y)
+ *
+ *  Purpose:
+ *      Insert a new empty line at the specified y position.
+ *      This function does not modify the internally saved cursor_x and cursor_y.
+ *  Return value:
+ *      true - Insertion successful
+ *      false - Line could not be inserted
+ */
+bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
+
+/**
+ *  buffer_insert_line_at_cursor(buf, max_y)
+ *
+ *  Purpose:
+ *      Insert a new empty line at 'cursor_y', which is saved in the buffer 'buf'.
+ *      This function does modify the internally saved cursor_x and cursor_y.
+ *  Return value:
+ *      true - Insertion successful
+ *      false - Line could not be inserted
+ */
+bool buffer_insert_line_at_cursor(Buffer *buf, size_t max_y);
 
 #endif // _BUFFER_H_

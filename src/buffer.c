@@ -242,3 +242,123 @@ void buffer_move_cursor_left(Buffer *buf) {
         buf->cursor_x--;
     }
 }
+
+bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x, size_t cursor_y) {
+    if (buf == NULL) return false;
+
+    Line *lin = buffer_find_line(buf, cursor_y);
+    if (lin == NULL || lin->size <= 0) return false;
+    
+    Character *ch = line_find_char(buf, lin, cursor_x);
+    if (ch == NULL) return false;
+    if (ch == lin->first_char) {
+        // Example:
+        //      |a| <-> b <-> c
+        //      b <-> c
+        lin->first_char = ch->next;
+    } else {
+        // Example:
+        //      a <-> |b| <-> c
+        //      
+        // 1.   ______________
+        //     |             |
+        //     a <-> |b| ->  c
+        // 2.
+        //     a <-> c
+        ch->next->prev = ch->prev;
+        ch->prev->next = ch->next;
+    }
+    free(ch);
+    lin->size--;
+    return true;
+}
+
+bool buffer_delete_char_at_cursor_x(Buffer *buf, size_t cursor_x) {
+    if (buf != NULL) {
+        return buffer_delete_char_at_cursor_xy(buf, cursor_x, buf->cursor_y);
+    }
+    return false;
+}
+
+bool buffer_delete_char_at_cursor(Buffer *buf) {
+    if (buf != NULL) {
+        return buffer_delete_char_at_cursor_xy(buf, buf->cursor_x, buf->cursor_y);
+    }
+    return false;
+}
+
+bool buffer_delete_line(Buffer *buf, Line *lin) {
+    if (buf == NULL || lin == NULL || lin->next == NULL || lin->prev == NULL) return false;
+
+    if (lin == buf->first_line) {
+        buf->first_line = lin->next;
+    } else {
+        lin->next->prev = lin->prev;
+        lin->prev->next = lin->next;
+    }
+
+    if (lin->size > 0) {
+        Character *itr = lin->first_char;
+        while (itr != NULL) {
+            Character *next_itr = itr->next;
+            free(itr);
+            itr = next_itr;
+        }
+    }
+    free(lin);
+    buf->size--;
+
+    if (buf->cursor_y <= buf->scroll_y) {
+        buf->cursor_max--;
+    }
+    return true;
+}
+
+bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y) {
+    if (buf == NULL) return false;
+
+    Line *curr_lin = buffer_find_line(buf, cursor_y);
+    if (curr_lin == NULL) return false;
+
+    Line *lin = calloc(1, sizeof(Line));
+    if (lin == NULL) return false;
+
+    if (curr_lin == buf->last_line) {
+        buf->last_line->next = lin;
+        lin->prev = buf->last_line;
+        buf->last_line = lin;
+    } else {
+        // Example:
+        // 'a' is being placed between 'c' and 'd'
+        //      b <-> c <-> d
+        
+        //      b <-> c  a -> d
+        lin->next = curr_lin->next;
+        
+        //      b <-> c <- a -> d
+        lin->prev = curr_lin;
+        
+        //      b <-> c <- a <-> d
+        curr_lin->next->prev = lin;
+        
+        //      b <-> c <-> a <-> d
+        curr_lin->next = lin;
+    }
+    buf->size++;
+    return true;
+}
+
+bool buffer_insert_line_at_cursor(Buffer *buf, size_t max_y) {
+    if (buf != NULL) {
+        bool res = buffer_insert_line_at_cursor_y(buf, buf->cursor_y);
+        if (res != false) {
+            buf->cursor_y++;
+            buf->cursor_x = 0;
+            if (buf->cursor_y > max_y && buf->cursor_y >= buf->cursor_max) {
+                buf->cursor_max++;
+            }
+            return true;
+        }
+    }
+    return false;
+}

@@ -170,118 +170,30 @@ int main(int argc, char **argv) {
                         current_mode = MODE_NORMAL;
                     } break;
                     case KEY_DC: {
-                        // TODO: This should be moved into a buffer.h function
-                        Line *lin = buffer_find_line(&buf, buf.cursor_y);
-                        if (lin == NULL || lin->size <= 0) break;
-                        
-                        Character *ch = line_find_char(&buf, lin, buf.cursor_x);
-                        if (ch == NULL) break;
-                        if (ch == lin->first_char) {
-                            // Example:
-                            //      |a| <-> b <-> c
-                            //      b <-> c
-                            lin->first_char = ch->next;
-                        } else {
-                            // Example:
-                            //      a <-> |b| <-> c
-                            //      
-                            // 1.   ______________
-                            //     |             |
-                            //     a <-> |b| ->  c
-                            // 2.
-                            //     a <-> c
-                            ch->next->prev = ch->prev;
-                            ch->prev->next = ch->next;
-                        }
-                        free(ch);
-                        lin->size--;
+                        buffer_delete_char_at_cursor(&buf);
                     } break;
                     case KEY_BACKSPACE: {
-                        // TODO: This should be moved into a buffer.h function
                         Line *lin = buffer_find_line(&buf, buf.cursor_y);
                         if (lin == NULL) break;
                         if (lin->size <= 0 && lin != buf.last_line && lin != buf.first_line) {
-                            if (lin == buf.first_line) {
-                                buf.first_line = lin->next;
-                            } else {
-                                lin->next->prev = lin->prev;
-                                lin->prev->next = lin->next;
-                            }
-                            free(lin);
-                            buf.size--;
-
-                            // Update rendering vars
-                            line_size = floor(log10(buf.size)) + 3;
-                            if (buf.cursor_y <= buf.scroll_y) {
-                                buf.cursor_max--;
+                            if (buffer_delete_line(&buf, lin)) {
+                                // Update rendering vars
+                                line_size = floor(log10(buf.size)) + 3;
                             }
                             break;
                         }
 
-                        long long del_x_index = buf.cursor_x-1;
-                        Character *ch = line_find_char(&buf, lin, del_x_index);
-                        if (ch == NULL) break;
-                        if (ch == lin->first_char) {
-                            // Example:
-                            //      |a| <-> b <-> c
-                            //      b <-> c
-                            lin->first_char = ch->next;
-                        } else {
-                            // Example:
-                            //      a <-> |b| <-> c
-                            //      
-                            // 1.   ______________
-                            //     |             |
-                            //     a <-> |b| ->  c
-                            // 2.
-                            //     a <-> c
-                            ch->next->prev = ch->prev;
-                            ch->prev->next = ch->next;
+                        if (buffer_delete_char_at_cursor_x(&buf, buf.cursor_x-1)) {
+                            buf.cursor_x--;
                         }
-                        free(ch);
-                        lin->size--;
-                        buf.cursor_x--;
                     } break;
                     case KEY_TAB: {
                         buffer_append_char_at_cursor(&buf, '\t');
                     } break;
                     case KEY_ENTER1: {
-                        // TODO: This should be moved into a buffer.h function
-                        Line *curr_lin = buffer_find_line(&buf, buf.cursor_y);
-                        if (curr_lin == NULL) break;
-
-                        Line *lin = calloc(1, sizeof(Line));
-                        if (lin == NULL) break;
-
-                        if (curr_lin == buf.last_line) {
-                            buf.last_line->next = lin;
-                            lin->prev = buf.last_line;
-                            buf.last_line = lin;
-                        } else {
-                            // Example:
-                            // 'a' is being placed between 'c' and 'd'
-                            //      b <-> c <-> d
-                            
-                            //      b <-> c  a -> d
-                            lin->next = curr_lin->next;
-                            
-                            //      b <-> c <- a -> d
-                            lin->prev = curr_lin;
-                            
-                            //      b <-> c <- a <-> d
-                            curr_lin->next->prev = lin;
-                            
-                            //      b <-> c <-> a <-> d
-                            curr_lin->next = lin;
-                        }
-                        buf.size++;
-                        buf.cursor_y++;
-                        buf.cursor_x = 0;
-                        
-                        // Update rendering vars
-                        line_size = floor(log10(buf.size)) + 3;
-                        if (buf.cursor_y > max_y && buf.cursor_y >= buf.cursor_max) {
-                            buf.cursor_max++;
+                        if (buffer_insert_line_at_cursor(&buf, max_y)) {
+                            // Update rendering vars
+                            line_size = floor(log10(buf.size)) + 3;
                         }
                     } break;
                     default: {
