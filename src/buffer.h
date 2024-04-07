@@ -5,11 +5,12 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <wctype.h>
 
 #define BUFFER_MAX_LINE_SIZE 512
 
 typedef struct _Character_ {
-    char value;
+    wint_t value;
 
     struct _Character_ *next;
     struct _Character_ *prev;
@@ -106,7 +107,7 @@ bool buffer_save(Buffer *buf, char *path);
  *  Return value:
  *      void
  */
-void buffer_append_char_at_cursor(Buffer *buf, char c);
+void buffer_append_char_at_cursor(Buffer *buf, wint_t c);
 
 /**
  *  buffer_find_line(buf, index)

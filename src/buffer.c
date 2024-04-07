@@ -136,7 +136,7 @@ bool buffer_save(Buffer *buf, char *path) {
     return true;
 }
 
-void buffer_append_char_at_cursor(Buffer *buf, char c) {
+void buffer_append_char_at_cursor(Buffer *buf, wint_t c) {
     if (buf == NULL) return;
     if (buf->cursor_y >= buf->size || buf->cursor_x > BUFFER_MAX_LINE_SIZE) return;  
     Line *lin = buffer_find_line(buf, buf->cursor_y);
@@ -256,6 +256,9 @@ bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x, size_t cursor
         //      |a| <-> b <-> c
         //      b <-> c
         lin->first_char = ch->next;
+    } else if (ch == lin->last_char) {
+        lin->last_char = ch->prev;
+        buf->cursor_x--;
     } else {
         // Example:
         //      a <-> |b| <-> c

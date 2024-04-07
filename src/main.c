@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <ncurses.h>
 #include <math.h>
+#include <wctype.h>
+#include <locale.h>
 
 #include "buffer.h"
 #include "defs.h"
@@ -36,6 +38,8 @@ int main(int argc, char **argv) {
     noecho();
     raw();
 
+    setlocale(LC_ALL, "");
+
     size_t infobar_height = 2;
     getmaxyx(stdscr, state.max_y, state.max_x);
     WINDOW *line_win = newwin(state.max_y-infobar_height, state.line_size, 0, 0);
@@ -47,7 +51,8 @@ int main(int argc, char **argv) {
     state.max_y -= infobar_height;
     buf.cursor_max = state.max_y;
 
-    int c;
+    int c_result;
+    wint_t c;
     bool close_requested = false;
     while (c != CTRL('q') && !close_requested) {
         werase(line_win);
@@ -78,7 +83,7 @@ int main(int argc, char **argv) {
             if (itr->size != 0) {
                 Character *c_itr = itr->first_char;
                 for (size_t j = 0; j < itr->size; ++j) {
-                    mvwprintw(text_win, i-buf.scroll_y, j, "%c", c_itr->value);
+                    mvwprintw(text_win, i-buf.scroll_y, j, "%C", c_itr->value);
                     c_itr = c_itr->next;
                 }
             }
@@ -95,7 +100,11 @@ int main(int argc, char **argv) {
         wrefresh(infobar_win);
         refresh();
 
-        c = wgetch(text_win);
+        c_result = wget_wch(text_win, &c);
+        if (c_result == ERR) {
+            info_msg = "Invalid character!";
+            continue;
+        }
         if (info_msg != NULL) {
             info_msg = NULL;
         }
