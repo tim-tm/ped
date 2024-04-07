@@ -6,28 +6,12 @@
 #include <math.h>
 
 #include "buffer.h"
-
-#define MAX_LINE_SIZE 512
-#define CTRL(k) ((k)&0x1f)
-#define KEY_ESCAPE 27
-#define KEY_TAB 9
-#define KEY_ENTER1 10
-
-enum Mode {
-    MODE_NORMAL = 0,
-    MODE_INSERT = 1,
-    MODE_VISUAL = 2,
-    MODE_SEARCH = 3
-};
+#include "defs.h"
 
 Buffer buf = {0};
+State state = {0};
 
-size_t line_size = 0;
-size_t max_y = 0;
-size_t max_x = 0;
 char *info_msg = NULL;
-
-enum Mode current_mode = MODE_NORMAL;
 
 const char *mode_get_name(enum Mode mode);
 
@@ -36,6 +20,7 @@ int main(int argc, char **argv) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;
     } else {
+        buf.state = &state;
         if (!buffer_read_from_file(&buf, argv[1])) {
             return 1;
         }
@@ -43,24 +28,24 @@ int main(int argc, char **argv) {
 
     // hacky thing to calculate the length of an integer
     // Example: 1234 -> 4, 12 -> 2, 62332 -> 5
-    line_size = floor(log10(buf.size)) + 3;
+    state.line_size = floor(log10(buf.size)) + 3;
 
     initscr();
-    move(buf.cursor_y, buf.cursor_x+line_size+1);
+    move(buf.cursor_y, buf.cursor_x+state.line_size+1);
     refresh();
     noecho();
     raw();
 
     size_t infobar_height = 2;
-    getmaxyx(stdscr, max_y, max_x);
-    WINDOW *line_win = newwin(max_y-infobar_height, line_size, 0, 0);
-    WINDOW *text_win = newwin(max_y-infobar_height, max_x-line_size, 0, line_size);
-    WINDOW *infobar_win = newwin(infobar_height, max_x, max_y-infobar_height, 0);
+    getmaxyx(stdscr, state.max_y, state.max_x);
+    WINDOW *line_win = newwin(state.max_y-infobar_height, state.line_size, 0, 0);
+    WINDOW *text_win = newwin(state.max_y-infobar_height, state.max_x-state.line_size, 0, state.line_size);
+    WINDOW *infobar_win = newwin(infobar_height, state.max_x, state.max_y-infobar_height, 0);
     keypad(text_win, TRUE);
     keypad(infobar_win, TRUE);
     
-    max_y -= infobar_height;
-    buf.cursor_max = max_y;
+    state.max_y -= infobar_height;
+    buf.cursor_max = state.max_y;
 
     int c;
     bool close_requested = false;
@@ -69,27 +54,27 @@ int main(int argc, char **argv) {
         werase(text_win);
         werase(infobar_win);
 
-        if (is_term_resized(max_y, max_x)) {
-            getmaxyx(stdscr, max_y, max_x);
-            max_y -= infobar_height;
+        if (is_term_resized(state.max_y, state.max_x)) {
+            getmaxyx(stdscr, state.max_y, state.max_x);
+            state.max_y -= infobar_height;
         }
 
-        wresize(line_win, max_y, line_size);
+        wresize(line_win, state.max_y, state.line_size);
         mvwin(line_win, 0, 0);
-        wresize(text_win, max_y, max_x-line_size);
-        mvwin(text_win, 0, line_size);
+        wresize(text_win, state.max_y, state.max_x-state.line_size);
+        mvwin(text_win, 0, state.line_size);
 
         Line *itr = buf.first_line;
         for (size_t i = 0; i < buf.size; ++i) {
             size_t l_size = floor(log10(i+1)) + 1;
-            if (buf.cursor_y >= max_y) {
-                buf.scroll_y = buf.cursor_max-max_y+1;
+            if (buf.cursor_y >= state.max_y) {
+                buf.scroll_y = buf.cursor_max-state.max_y+1;
             } else {
                 // FIXME: This causes a weird clipping that should be removed
                 buf.scroll_y = 0;
             }
 
-            mvwprintw(line_win, i-buf.scroll_y, line_size-2-l_size, "%zu", i+1);
+            mvwprintw(line_win, i-buf.scroll_y, state.line_size-2-l_size, "%zu", i+1);
             if (itr->size != 0) {
                 Character *c_itr = itr->first_char;
                 for (size_t j = 0; j < itr->size; ++j) {
@@ -99,11 +84,11 @@ int main(int argc, char **argv) {
             }
             itr = itr->next;
         }
-        wprintw(infobar_win, "%s @ %s\n", mode_get_name(current_mode), buf.file_path);
+        wprintw(infobar_win, "%s @ %s\n", mode_get_name(state.current_mode), buf.file_path);
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
-        move(buf.cursor_y-buf.scroll_y, buf.cursor_x+line_size);
+        move(buf.cursor_y-buf.scroll_y, buf.cursor_x+state.line_size);
 
         wrefresh(line_win);
         wrefresh(text_win);
@@ -115,12 +100,12 @@ int main(int argc, char **argv) {
             info_msg = NULL;
         }
 
-        switch (current_mode) {
+        switch (state.current_mode) {
             case MODE_NORMAL: {
                 switch (c) {
                     case KEY_DOWN:
                     case 'j': {
-                        buffer_move_cursor_down(&buf, max_y);
+                        buffer_move_cursor_down(&buf);
                     } break;
                     case KEY_UP:
                     case 'k': {
@@ -135,13 +120,13 @@ int main(int argc, char **argv) {
                         buffer_move_cursor_left(&buf);
                     } break;
                     case 'a': {
-                        current_mode = MODE_INSERT;
+                        state.current_mode = MODE_INSERT;
                     } break;
                     case 'v': {
-                        current_mode = MODE_VISUAL;
+                        state.current_mode = MODE_VISUAL;
                     } break;
                     case '/': {
-                        current_mode = MODE_SEARCH;
+                        state.current_mode = MODE_SEARCH;
                     } break;
                     case CTRL('s'): {
                         if (buffer_save(&buf, buf.file_path)) {
@@ -155,7 +140,7 @@ int main(int argc, char **argv) {
             case MODE_INSERT: {
                 switch (c) {
                     case KEY_DOWN: {
-                        buffer_move_cursor_down(&buf, max_y);
+                        buffer_move_cursor_down(&buf);
                     } break;
                     case KEY_UP: {
                         buffer_move_cursor_up(&buf);
@@ -167,7 +152,7 @@ int main(int argc, char **argv) {
                         buffer_move_cursor_left(&buf);
                     } break;
                     case KEY_ESCAPE: {
-                        current_mode = MODE_NORMAL;
+                        state.current_mode = MODE_NORMAL;
                     } break;
                     case KEY_DC: {
                         buffer_delete_char_at_cursor(&buf);
@@ -178,7 +163,7 @@ int main(int argc, char **argv) {
                         if (lin->size <= 0 && lin != buf.last_line && lin != buf.first_line) {
                             if (buffer_delete_line(&buf, lin)) {
                                 // Update rendering vars
-                                line_size = floor(log10(buf.size)) + 3;
+                                state.line_size = floor(log10(buf.size)) + 3;
                             }
                             break;
                         }
@@ -191,9 +176,9 @@ int main(int argc, char **argv) {
                         buffer_append_char_at_cursor(&buf, '\t');
                     } break;
                     case KEY_ENTER1: {
-                        if (buffer_insert_line_at_cursor(&buf, max_y)) {
+                        if (buffer_insert_line_at_cursor(&buf)) {
                             // Update rendering vars
-                            line_size = floor(log10(buf.size)) + 3;
+                            state.line_size = floor(log10(buf.size)) + 3;
                         }
                     } break;
                     default: {
@@ -204,14 +189,14 @@ int main(int argc, char **argv) {
             case MODE_VISUAL: {
                 switch (c) {
                     case KEY_ESCAPE: {
-                        current_mode = MODE_NORMAL;
+                        state.current_mode = MODE_NORMAL;
                     } break;
                 }
             } break;
             case MODE_SEARCH: {
                 switch (c) {
                     case KEY_ESCAPE: {
-                        current_mode = MODE_NORMAL;
+                        state.current_mode = MODE_NORMAL;
                     } break;
                 }
             } break;

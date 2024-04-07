@@ -1,6 +1,7 @@
 #ifndef _BUFFER_H_
 #define _BUFFER_H_
 
+#include "defs.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -32,6 +33,8 @@ typedef struct _Buffer_ {
     size_t cursor_y;
     size_t cursor_max;
     size_t scroll_y;
+
+    State *state;
     
     size_t size;
     Line *lines;
@@ -130,16 +133,15 @@ Line *buffer_find_line(Buffer *buf, size_t index);
 Character *line_find_char(Buffer *buf, Line *lin, size_t index);
 
 /**
- *  buffer_move_cursor_down(buf, max_y)
+ *  buffer_move_cursor_down(buf)
  *
  *  Purpose:
  *      Calling this function moves the buffer's cursor down by
- *      one if possible. The param 'max_y' should be the size
- *      of the text-field being drawn.
+ *      one if possible.
  *  Return value:
  *      void
  */
-void buffer_move_cursor_down(Buffer *buf, size_t max_y);
+void buffer_move_cursor_down(Buffer *buf);
 
 /**
  *  buffer_move_cursor_up(buf)
@@ -237,7 +239,7 @@ bool buffer_delete_line(Buffer *buf, Line *lin);
 bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
 
 /**
- *  buffer_insert_line_at_cursor(buf, max_y)
+ *  buffer_insert_line_at_cursor(buf)
  *
  *  Purpose:
  *      Insert a new empty line at 'cursor_y', which is saved in the buffer 'buf'.
@@ -246,6 +248,6 @@ bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
  *      true - Insertion successful
  *      false - Line could not be inserted
  */
-bool buffer_insert_line_at_cursor(Buffer *buf, size_t max_y);
+bool buffer_insert_line_at_cursor(Buffer *buf);
 
 #endif // _BUFFER_H_

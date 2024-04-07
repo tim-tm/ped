@@ -209,11 +209,11 @@ Character *line_find_char(Buffer *buf, Line *lin, size_t index) {
     return NULL;
 }
 
-void buffer_move_cursor_down(Buffer *buf, size_t max_y) {
-    if (buf != NULL && buf->cursor_y < buf->size-1) {
+void buffer_move_cursor_down(Buffer *buf) {
+    if (buf != NULL && buf->state != NULL && buf->cursor_y < buf->size-1) {
         buf->cursor_y++;
         buf->cursor_x = 0;
-        if (buf->cursor_y > max_y && buf->cursor_y >= buf->cursor_max) {
+        if (buf->cursor_y > buf->state->max_y && buf->cursor_y >= buf->cursor_max) {
             buf->cursor_max++;
         }
     }
@@ -348,13 +348,13 @@ bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y) {
     return true;
 }
 
-bool buffer_insert_line_at_cursor(Buffer *buf, size_t max_y) {
+bool buffer_insert_line_at_cursor(Buffer *buf) {
     if (buf != NULL) {
         bool res = buffer_insert_line_at_cursor_y(buf, buf->cursor_y);
         if (res != false) {
             buf->cursor_y++;
             buf->cursor_x = 0;
-            if (buf->cursor_y > max_y && buf->cursor_y >= buf->cursor_max) {
+            if (buf->cursor_y > buf->state->max_y && buf->cursor_y >= buf->cursor_max) {
                 buf->cursor_max++;
             }
             return true;
