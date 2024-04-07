@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// FIXME: Character width is not properly handled, this is a WIP commit.
+
 static bool buffer_init_empty(Buffer *buf, char *path) {
     Line *lin = calloc(1, sizeof(Line));
     if (lin == NULL) {
@@ -45,6 +47,7 @@ bool buffer_read_from_file(Buffer *buf, char *path) {
         // len-1 in order to strip off that \n at the end
         // we can for sure say that there is always a \n because
         // fgets only reads in lines
+        // TODO: This will need to support wide characters (unicode fonts)
         for (lin->size = 0; lin->size < len-1; ++lin->size) {
             Character *tmp = calloc(1, sizeof(Character));
             if (tmp == NULL) {
@@ -126,7 +129,7 @@ bool buffer_save(Buffer *buf, char *path) {
     while (line_itr != NULL) {
         Character *char_itr = line_itr->first_char;
         while (char_itr != NULL) {
-            fprintf(buf->fp, "%c", char_itr->value);
+            fprintf(buf->fp, "%C", char_itr->value);
             char_itr = char_itr->next;
         }
         fprintf(buf->fp, "\n");

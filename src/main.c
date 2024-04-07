@@ -5,6 +5,7 @@
 #include <ncurses.h>
 #include <math.h>
 #include <wctype.h>
+#include <wchar.h>
 #include <locale.h>
 
 #include "buffer.h"
@@ -32,13 +33,13 @@ int main(int argc, char **argv) {
     // Example: 1234 -> 4, 12 -> 2, 62332 -> 5
     state.line_size = floor(log10(buf.size)) + 3;
 
+    setlocale(LC_ALL, "");
+
     initscr();
     move(buf.cursor_y, buf.cursor_x+state.line_size+1);
     refresh();
     noecho();
     raw();
-
-    setlocale(LC_ALL, "");
 
     size_t infobar_height = 2;
     getmaxyx(stdscr, state.max_y, state.max_x);
@@ -82,8 +83,10 @@ int main(int argc, char **argv) {
             mvwprintw(line_win, i-buf.scroll_y, state.line_size-2-l_size, "%zu", i+1);
             if (itr->size != 0) {
                 Character *c_itr = itr->first_char;
-                for (size_t j = 0; j < itr->size; ++j) {
+                size_t j = 0;
+                while (c_itr != NULL) {
                     mvwprintw(text_win, i-buf.scroll_y, j, "%C", c_itr->value);
+                    j += wcwidth(c_itr->value);
                     c_itr = c_itr->next;
                 }
             }
