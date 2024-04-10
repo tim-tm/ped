@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;
     } else {
+        setlocale(LC_ALL, "");
         buf.state = &state;
         if (!buffer_read_from_file(&buf, argv[1])) {
             return 1;
@@ -32,8 +33,6 @@ int main(int argc, char **argv) {
     // hacky thing to calculate the length of an integer
     // Example: 1234 -> 4, 12 -> 2, 62332 -> 5
     state.line_size = floor(log10(buf.size)) + 3;
-
-    setlocale(LC_ALL, "");
 
     initscr();
     move(buf.cursor_y, buf.cursor_x+state.line_size+1);

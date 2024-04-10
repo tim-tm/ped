@@ -33,20 +33,19 @@ bool buffer_read_from_file(Buffer *buf, char *path) {
     }
     buf->file_path = path;
 
-    char str[512];
-    for (buf->size = 0; fgets(str, BUFFER_MAX_LINE_SIZE, buf->fp) != NULL; ++buf->size) {
+    wchar_t str[512];
+    for (buf->size = 0; fgetws(str, BUFFER_MAX_LINE_SIZE, buf->fp) != NULL; ++buf->size) {
         Line *lin = calloc(1, sizeof(Line));
         if (lin == NULL) {
             printf("Failed to allocate space for buffer.\n");
             return false;
         }
 
-        size_t len = strnlen(str, BUFFER_MAX_LINE_SIZE);
+        size_t len = wcsnlen(str, BUFFER_MAX_LINE_SIZE);
         Character *itr = lin->chars;
         // len-1 in order to strip off that \n at the end
         // we can for sure say that there is always a \n because
-        // fgets only reads in lines
-        // TODO: This will need to support wide characters (unicode fonts)
+        // fgetws only reads in lines
         for (lin->size = 0; lin->size < len-1; ++lin->size) {
             Character *tmp = calloc(1, sizeof(Character));
             if (tmp == NULL) {
@@ -211,6 +210,8 @@ Character *line_find_char(Buffer *buf, Line *lin, size_t index) {
     }
     return NULL;
 }
+
+// TODO: Fix wide character handling, since that is still kind of buggy
 
 void buffer_move_cursor_down(Buffer *buf) {
     if (buf != NULL && buf->state != NULL && buf->cursor_y < buf->size-1) {
