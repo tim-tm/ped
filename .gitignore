@@ -10,3 +10,5 @@ Makefile.in
 missing
 config.guess
 config.sub
+compile_commands.json
+.cache/

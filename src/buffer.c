@@ -2,8 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-// FIXME: Character width is not properly handled, this is a WIP commit.
+#include <wchar.h>
 
 static bool buffer_init_empty(Buffer *buf, char *path) {
     Line *lin = calloc(1, sizeof(Line));
@@ -186,6 +185,7 @@ void buffer_append_char_at_cursor(Buffer *buf, wint_t c) {
         ch->next = tmp;
     }
     lin->size++;
+    buf->render_cursor_x += wcwidth(c);
     buf->cursor_x++;
 }
 
@@ -215,6 +215,7 @@ Character *line_find_char(Buffer *buf, Line *lin, size_t index) {
 void buffer_move_cursor_down(Buffer *buf) {
     if (buf != NULL && buf->state != NULL && buf->cursor_y < buf->size-1) {
         buf->cursor_y++;
+        buf->render_cursor_x = 0;
         buf->cursor_x = 0;
         if (buf->cursor_y > buf->state->max_y && buf->cursor_y >= buf->cursor_max) {
             buf->cursor_max++;
@@ -225,6 +226,7 @@ void buffer_move_cursor_down(Buffer *buf) {
 void buffer_move_cursor_up(Buffer *buf) {
     if (buf != NULL && buf->cursor_y > 0) {
         buf->cursor_y--;
+        buf->render_cursor_x = 0;
         buf->cursor_x = 0;
         if (buf->cursor_y <= buf->scroll_y) {
             buf->cursor_max--;
@@ -235,14 +237,18 @@ void buffer_move_cursor_up(Buffer *buf) {
 void buffer_move_cursor_right(Buffer *buf) {
     if (buf == NULL) return;
     Line *lin = buffer_find_line(buf, buf->cursor_y);
-    if (lin != NULL && lin->size != 0 && buf->cursor_x < lin->size-1) {
-        buf->cursor_x++;
+    if (lin != NULL && lin->size != 0 && buf->cursor_x < lin->size-1 && buf->render_cursor_x < lin->size-1) {
+        if (buffer_move_render_cursor(buf, 1)) {
+            buf->cursor_x++;
+        }
     }
 }
 
 void buffer_move_cursor_left(Buffer *buf) {
-    if (buf != NULL && buf->cursor_x > 0) {
-        buf->cursor_x--;
+    if (buf != NULL && buf->cursor_x > 0 && buf->render_cursor_x > 0) {
+        if (buffer_move_render_cursor(buf, -1)) {
+            buf->cursor_x--;
+        }
     }
 }
 
@@ -261,6 +267,7 @@ bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x, size_t cursor
         lin->first_char = ch->next;
     } else if (ch == lin->last_char) {
         lin->last_char = ch->prev;
+        buf->render_cursor_x -= wcwidth(ch->value);
         buf->cursor_x--;
     } else {
         // Example:
@@ -359,6 +366,7 @@ bool buffer_insert_line_at_cursor(Buffer *buf) {
         bool res = buffer_insert_line_at_cursor_y(buf, buf->cursor_y);
         if (res != false) {
             buf->cursor_y++;
+            buf->render_cursor_x = 0;
             buf->cursor_x = 0;
             if (buf->cursor_y > buf->state->max_y && buf->cursor_y >= buf->cursor_max) {
                 buf->cursor_max++;
@@ -367,4 +375,20 @@ bool buffer_insert_line_at_cursor(Buffer *buf) {
         }
     }
     return false;
+}
+
+bool buffer_move_render_cursor_x(Buffer *buf, size_t cursor_x, int direction_x) {
+    if (buf == NULL) return false;
+
+    Line *lin = buffer_find_line(buf, buf->cursor_y);
+    if (lin == NULL) return false;
+    Character *ch = line_find_char(buf, lin, cursor_x);
+    if (ch == NULL) return false;
+
+    buf->render_cursor_x += wcwidth(ch->value) * direction_x;
+    return true;
+}
+
+bool buffer_move_render_cursor(Buffer *buf, int direction_x) {
+    return buffer_move_render_cursor_x(buf, buf->cursor_x, direction_x);
 }

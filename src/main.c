@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
         if (info_msg != NULL) {
             wprintw(infobar_win, "%s", info_msg);
         }
-        move(buf.cursor_y-buf.scroll_y, buf.cursor_x+state.line_size);
+        move(buf.cursor_y-buf.scroll_y, buf.render_cursor_x+state.line_size);
 
         wrefresh(line_win);
         wrefresh(text_win);
@@ -181,7 +181,9 @@ int main(int argc, char **argv) {
                         }
 
                         if (buffer_delete_char_at_cursor_x(&buf, buf.cursor_x-1)) {
-                            buf.cursor_x--;
+                            if (buffer_move_render_cursor_x(&buf, buf.cursor_x-1, -1)) {
+                                buf.cursor_x--;
+                            }
                         }
                     } break;
                     case KEY_TAB: {

@@ -32,6 +32,10 @@ typedef struct _Buffer_ {
     
     size_t cursor_x;
     size_t cursor_y;
+    // The acutally rendered cursor may be different from the real one because of character width
+    // on unicode characters
+    size_t render_cursor_x;
+    
     size_t cursor_max;
     size_t scroll_y;
 
@@ -250,5 +254,33 @@ bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
  *      false - Line could not be inserted
  */
 bool buffer_insert_line_at_cursor(Buffer *buf);
+
+/**
+ *  buffer_move_render_cursor(buf, cursor_x, direction_x)
+ *  
+ *  Purpose:
+ *      This function was created to easily manage 'render_cursor_x'.
+ *      'cursor_x' needs to be specified, 'cursor_y' is the buffer's 'cursor_y'.
+ *      'direction_x' will be multiplied by width of the character at 'cursor_x'|'cursor_y'.
+ *  Return value:
+ *      true - Found and moved 'render_cursor_x'
+ *      false - Could not find the character at 'cursor_x'|'cursor_y' and therefore didn't update
+ *              'render_cursor_x'
+ */
+bool buffer_move_render_cursor_x(Buffer *buf, size_t cursor_x, int direction_x);
+
+/**
+ *  buffer_move_render_cursor_x(buf, direction_x)
+ *  
+ *  Purpose:
+ *      This function was created to easily manage 'render_cursor_x'.
+ *      Both 'cursor_x' and 'cursor_y' are took from the buffer.
+ *      'direction_x' will be multiplied by width of the character at 'cursor_x'|'cursor_y'.
+ *  Return value:
+ *      true - Found and moved 'render_cursor_x'
+ *      false - Could not find the character at 'cursor_x'|'cursor_y' and therefore didn't update
+ *              'render_cursor_x'
+ */
+bool buffer_move_render_cursor(Buffer *buf, int direction_x);
 
 #endif // _BUFFER_H_
