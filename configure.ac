@@ -1,5 +1,5 @@
 AC_PREREQ([2.72])
-AC_INIT([ped], [0.0.2], [], [], [https://github.com/tim-tm/ped])
+AC_INIT([ped], [0.0.3], [], [], [https://github.com/tim-tm/ped])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 AC_PROG_CC
