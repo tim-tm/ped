@@ -135,8 +135,12 @@ int main(int argc, char **argv) {
       case 'h': {
         buffer_move_cursor_left(&buf);
       } break;
-      case 'a': {
+      case 'i': {
+        SET_CURSOR_STYLE(CURSOR_BAR);
         state.current_mode = MODE_INSERT;
+      } break;
+      case 'a': {
+        state.current_mode = MODE_APPEND;
       } break;
       case 'v': {
         state.current_mode = MODE_VISUAL;
@@ -168,6 +172,7 @@ int main(int argc, char **argv) {
         buffer_move_cursor_left(&buf);
       } break;
       case KEY_ESCAPE: {
+        SET_CURSOR_STYLE(CURSOR_BLOCK);
         state.current_mode = MODE_NORMAL;
       } break;
       case KEY_DC: {
@@ -213,6 +218,13 @@ int main(int argc, char **argv) {
       }
     } break;
     case MODE_SEARCH: {
+      switch (c) {
+      case KEY_ESCAPE: {
+        state.current_mode = MODE_NORMAL;
+      } break;
+      }
+    } break;
+    case MODE_APPEND: {
       switch (c) {
       case KEY_ESCAPE: {
         state.current_mode = MODE_NORMAL;
