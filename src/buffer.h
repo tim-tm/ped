@@ -2,52 +2,53 @@
 #define _BUFFER_H_
 
 #include "defs.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <wctype.h>
 
 #define BUFFER_MAX_LINE_SIZE 512
 
 typedef struct _Character_ {
-    wint_t value;
+  wint_t value;
 
-    struct _Character_ *next;
-    struct _Character_ *prev;
+  struct _Character_ *next;
+  struct _Character_ *prev;
 } Character;
 
 typedef struct _Line_ {
-    size_t size;
-    Character *chars;
-    Character *first_char;
-    Character *last_char;
+  size_t size;
+  Character *chars;
+  Character *first_char;
+  Character *last_char;
 
-    struct _Line_ *next;
-    struct _Line_ *prev;
+  struct _Line_ *next;
+  struct _Line_ *prev;
 } Line;
 
 typedef struct _Buffer_ {
-    char *file_path;
-    FILE *fp;
-    
-    size_t cursor_x;
-    size_t cursor_y;
-    // The acutally rendered cursor may be different from the real one because of character width
-    // on unicode characters
-    size_t render_cursor_x;
-    
-    size_t cursor_max;
-    size_t scroll_y;
+  char *file_path;
+  FILE *fp;
 
-    State *state;
-    
-    size_t size;
-    Line *lines;
-    Line *first_line;
-    Line *last_line;
+  size_t cursor_x;
+  size_t cursor_y;
+  // The acutally rendered cursor may be different from the real one because of
+  // character width on unicode characters
+  size_t render_cursor_x;
+
+  size_t cursor_max;
+  size_t scroll_y;
+
+  State *state;
+
+  size_t size;
+  Line *lines;
+  Line *first_line;
+  Line *last_line;
 } Buffer;
 
-// All static methods are for internal purposes and not exposed to the one including buffer.h
+// All static methods are for internal purposes and not exposed to the one
+// including buffer.h
 
 /**
  *  buffer_init_empty(buf, path)
@@ -192,7 +193,8 @@ void buffer_move_cursor_left(Buffer *buf);
  *      true - Deletion successful
  *      false - Character could not be deleted
  */
-bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x, size_t cursor_y);
+bool buffer_delete_char_at_cursor_xy(Buffer *buf, size_t cursor_x,
+                                     size_t cursor_y);
 
 /**
  *  buffer_delete_char_at_cursor_x(buf, cursor_x)
@@ -236,10 +238,9 @@ bool buffer_delete_line(Buffer *buf, Line *lin);
  *
  *  Purpose:
  *      Insert a new empty line at the specified y position.
- *      This function does not modify the internally saved cursor_x and cursor_y.
- *  Return value:
- *      true - Insertion successful
- *      false - Line could not be inserted
+ *      This function does not modify the internally saved cursor_x and
+ * cursor_y. Return value: true - Insertion successful false - Line could not be
+ * inserted
  */
 bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
 
@@ -247,8 +248,8 @@ bool buffer_insert_line_at_cursor_y(Buffer *buf, size_t cursor_y);
  *  buffer_insert_line_at_cursor(buf)
  *
  *  Purpose:
- *      Insert a new empty line at 'cursor_y', which is saved in the buffer 'buf'.
- *      This function does modify the internally saved cursor_x and cursor_y.
+ *      Insert a new empty line at 'cursor_y', which is saved in the buffer
+ * 'buf'. This function does modify the internally saved cursor_x and cursor_y.
  *  Return value:
  *      true - Insertion successful
  *      false - Line could not be inserted
@@ -257,29 +258,27 @@ bool buffer_insert_line_at_cursor(Buffer *buf);
 
 /**
  *  buffer_move_render_cursor(buf, cursor_x, direction_x)
- *  
+ *
  *  Purpose:
  *      This function was created to easily manage 'render_cursor_x'.
  *      'cursor_x' needs to be specified, 'cursor_y' is the buffer's 'cursor_y'.
- *      'direction_x' will be multiplied by width of the character at 'cursor_x'|'cursor_y'.
- *  Return value:
- *      true - Found and moved 'render_cursor_x'
- *      false - Could not find the character at 'cursor_x'|'cursor_y' and therefore didn't update
- *              'render_cursor_x'
+ *      'direction_x' will be multiplied by width of the character at
+ * 'cursor_x'|'cursor_y'. Return value: true - Found and moved 'render_cursor_x'
+ *      false - Could not find the character at 'cursor_x'|'cursor_y' and
+ * therefore didn't update 'render_cursor_x'
  */
 bool buffer_move_render_cursor_x(Buffer *buf, size_t cursor_x, int direction_x);
 
 /**
  *  buffer_move_render_cursor_x(buf, direction_x)
- *  
+ *
  *  Purpose:
  *      This function was created to easily manage 'render_cursor_x'.
  *      Both 'cursor_x' and 'cursor_y' are took from the buffer.
- *      'direction_x' will be multiplied by width of the character at 'cursor_x'|'cursor_y'.
- *  Return value:
- *      true - Found and moved 'render_cursor_x'
- *      false - Could not find the character at 'cursor_x'|'cursor_y' and therefore didn't update
- *              'render_cursor_x'
+ *      'direction_x' will be multiplied by width of the character at
+ * 'cursor_x'|'cursor_y'. Return value: true - Found and moved 'render_cursor_x'
+ *      false - Could not find the character at 'cursor_x'|'cursor_y' and
+ * therefore didn't update 'render_cursor_x'
  */
 bool buffer_move_render_cursor(Buffer *buf, int direction_x);
 
