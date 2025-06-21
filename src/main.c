@@ -11,12 +11,24 @@
 #include "buffer.h"
 #include "defs.h"
 
+const char *mode_get_name(enum Mode mode);
+
+bool mode_handle_normal(Buffer *buf, State *state, wint_t c);
+bool mode_handle_insert(Buffer *buf, State *state, wint_t c);
+bool mode_handle_visual(Buffer *buf, State *state, wint_t c);
+bool mode_handle_search(Buffer *buf, State *state, wint_t c);
+
+// array of function pointers to handle all modes
+// accepts Buffer, State and current character and
+// returns wether the editor should be closed.
+bool (*mode_funcs[])(Buffer *buf, State *state,
+                     wint_t c) = {mode_handle_normal, mode_handle_insert,
+                                  mode_handle_visual, mode_handle_search};
+
 Buffer buf = {0};
 State state = {0};
 
 char *info_msg = NULL;
-
-const char *mode_get_name(enum Mode mode);
 
 int main(int argc, char **argv) {
     if (argc <= 1 || argv[1] == NULL) {
@@ -119,117 +131,7 @@ int main(int argc, char **argv) {
             info_msg = NULL;
         }
 
-        switch (state.current_mode) {
-        case MODE_NORMAL: {
-            switch (c) {
-            case KEY_DOWN:
-            case 'j': {
-                buffer_move_cursor_down(&buf);
-            } break;
-            case KEY_UP:
-            case 'k': {
-                buffer_move_cursor_up(&buf);
-            } break;
-            case KEY_RIGHT:
-            case 'l': {
-                buffer_move_cursor_right(&buf);
-            } break;
-            case KEY_LEFT:
-            case 'h': {
-                buffer_move_cursor_left(&buf);
-            } break;
-            case 'i': {
-                SET_CURSOR_STYLE(CURSOR_BAR);
-                state.current_mode = MODE_INSERT;
-            } break;
-            case 'a': {
-                state.current_mode = MODE_INSERT;
-            } break;
-            case 'v': {
-                state.current_mode = MODE_VISUAL;
-            } break;
-            case '/': {
-                state.current_mode = MODE_SEARCH;
-            } break;
-            case CTRL('s'): {
-                if (buffer_save(&buf, buf.file_path)) {
-                    close_requested = true;
-                } else {
-                    info_msg = "Failed to save file!";
-                }
-            } break;
-            }
-        } break;
-        case MODE_INSERT: {
-            switch (c) {
-            case KEY_DOWN: {
-                buffer_move_cursor_down(&buf);
-            } break;
-            case KEY_UP: {
-                buffer_move_cursor_up(&buf);
-            } break;
-            case KEY_RIGHT: {
-                buffer_move_cursor_right(&buf);
-            } break;
-            case KEY_LEFT: {
-                buffer_move_cursor_left(&buf);
-            } break;
-            case KEY_ESCAPE: {
-                SET_CURSOR_STYLE(CURSOR_BLOCK);
-                state.current_mode = MODE_NORMAL;
-            } break;
-            case KEY_DC: {
-                buffer_delete_char_at_cursor(&buf);
-            } break;
-            case KEY_BACKSPACE: {
-                Line *lin = buffer_find_line(&buf, buf.cursor_y);
-                if (lin == NULL)
-                    break;
-                if (lin->size <= 0 && lin != buf.last_line &&
-                    lin != buf.first_line) {
-                    if (buffer_delete_line(&buf, lin)) {
-                        // Update rendering vars
-                        state.line_size = floor(log10(buf.size)) + 3;
-                    }
-                    break;
-                }
-
-                if (buffer_delete_char_at_cursor_x(&buf, buf.cursor_x - 1)) {
-                    if (buffer_move_render_cursor_x(&buf, buf.cursor_x - 1,
-                                                    -1)) {
-                        buf.cursor_x--;
-                    }
-                }
-            } break;
-            case KEY_TAB: {
-                buffer_append_char_at_cursor(&buf, '\t');
-            } break;
-            case KEY_ENTER1: {
-                if (buffer_insert_line_at_cursor(&buf)) {
-                    // Update rendering vars
-                    state.line_size = floor(log10(buf.size)) + 3;
-                }
-            } break;
-            default: {
-                buffer_append_char_at_cursor(&buf, c);
-            } break;
-            }
-        } break;
-        case MODE_VISUAL: {
-            switch (c) {
-            case KEY_ESCAPE: {
-                state.current_mode = MODE_NORMAL;
-            } break;
-            }
-        } break;
-        case MODE_SEARCH: {
-            switch (c) {
-            case KEY_ESCAPE: {
-                state.current_mode = MODE_NORMAL;
-            } break;
-            }
-        } break;
-        }
+        close_requested = mode_funcs[state.current_mode](&buf, &state, c);
     }
 
     delwin(line_win);
@@ -245,4 +147,119 @@ const char *mode_get_name(enum Mode mode) {
     if (mode < 0 || mode >= MODE_LENGTH)
         return "UNKNOWN";
     return mode_names[mode];
+}
+
+bool mode_handle_normal(Buffer *buf, State *state, wint_t c) {
+    switch (c) {
+    case KEY_DOWN:
+    case 'j': {
+        buffer_move_cursor_down(buf);
+    } break;
+    case KEY_UP:
+    case 'k': {
+        buffer_move_cursor_up(buf);
+    } break;
+    case KEY_RIGHT:
+    case 'l': {
+        buffer_move_cursor_right(buf);
+    } break;
+    case KEY_LEFT:
+    case 'h': {
+        buffer_move_cursor_left(buf);
+    } break;
+    case 'i': {
+        SET_CURSOR_STYLE(CURSOR_BAR);
+        state->current_mode = MODE_INSERT;
+    } break;
+    case 'a': {
+        state->current_mode = MODE_INSERT;
+    } break;
+    case 'v': {
+        state->current_mode = MODE_VISUAL;
+    } break;
+    case '/': {
+        state->current_mode = MODE_SEARCH;
+    } break;
+    case CTRL('s'): {
+        if (buffer_save(buf, buf->file_path)) {
+            return true;
+        } else {
+            info_msg = "Failed to save file!";
+        }
+    } break;
+    }
+    return false;
+}
+
+bool mode_handle_insert(Buffer *buf, State *state, wint_t c) {
+    switch (c) {
+    case KEY_DOWN: {
+        buffer_move_cursor_down(buf);
+    } break;
+    case KEY_UP: {
+        buffer_move_cursor_up(buf);
+    } break;
+    case KEY_RIGHT: {
+        buffer_move_cursor_right(buf);
+    } break;
+    case KEY_LEFT: {
+        buffer_move_cursor_left(buf);
+    } break;
+    case KEY_ESCAPE: {
+        SET_CURSOR_STYLE(CURSOR_BLOCK);
+        state->current_mode = MODE_NORMAL;
+    } break;
+    case KEY_DC: {
+        buffer_delete_char_at_cursor(buf);
+    } break;
+    case KEY_BACKSPACE: {
+        Line *lin = buffer_find_line(buf, buf->cursor_y);
+        if (lin == NULL)
+            break;
+        if (lin->size <= 0 && lin != buf->last_line && lin != buf->first_line) {
+            if (buffer_delete_line(buf, lin)) {
+                // Update rendering vars
+                state->line_size = floor(log10(buf->size)) + 3;
+            }
+            break;
+        }
+
+        if (buffer_delete_char_at_cursor_x(buf, buf->cursor_x - 1)) {
+            if (buffer_move_render_cursor_x(buf, buf->cursor_x - 1, -1)) {
+                buf->cursor_x--;
+            }
+        }
+    } break;
+    case KEY_TAB: {
+        buffer_append_char_at_cursor(buf, '\t');
+    } break;
+    case KEY_ENTER1: {
+        if (buffer_insert_line_at_cursor(buf)) {
+            // Update rendering vars
+            state->line_size = floor(log10(buf->size)) + 3;
+        }
+    } break;
+    default: {
+        buffer_append_char_at_cursor(buf, c);
+    } break;
+    }
+    return false;
+}
+
+bool mode_handle_visual(Buffer *buf, State *state, wint_t c) {
+    switch (c) {
+    case KEY_ESCAPE: {
+        state->current_mode = MODE_NORMAL;
+    } break;
+    }
+    return false;
+}
+
+bool mode_handle_search(Buffer *buf, State *state, wint_t c) {
+    switch (c) {
+    case KEY_ESCAPE: {
+        state->current_mode = MODE_NORMAL;
+    } break;
+    }
+    return false;
 }
