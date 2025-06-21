@@ -10,41 +10,41 @@
 #define BUFFER_MAX_LINE_SIZE 512
 
 typedef struct _Character_ {
-  wint_t value;
+    wint_t value;
 
-  struct _Character_ *next;
-  struct _Character_ *prev;
+    struct _Character_ *next;
+    struct _Character_ *prev;
 } Character;
 
 typedef struct _Line_ {
-  size_t size;
-  Character *chars;
-  Character *first_char;
-  Character *last_char;
+    size_t size;
+    Character *chars;
+    Character *first_char;
+    Character *last_char;
 
-  struct _Line_ *next;
-  struct _Line_ *prev;
+    struct _Line_ *next;
+    struct _Line_ *prev;
 } Line;
 
 typedef struct _Buffer_ {
-  char *file_path;
-  FILE *fp;
+    char *file_path;
+    FILE *fp;
 
-  size_t cursor_x;
-  size_t cursor_y;
-  // The acutally rendered cursor may be different from the real one because of
-  // character width on unicode characters
-  size_t render_cursor_x;
+    size_t cursor_x;
+    size_t cursor_y;
+    // The acutally rendered cursor may be different from the real one because
+    // of character width on unicode characters
+    size_t render_cursor_x;
 
-  size_t cursor_max;
-  size_t scroll_y;
+    size_t cursor_max;
+    size_t scroll_y;
 
-  State *state;
+    State *state;
 
-  size_t size;
-  Line *lines;
-  Line *first_line;
-  Line *last_line;
+    size_t size;
+    Line *lines;
+    Line *first_line;
+    Line *last_line;
 } Buffer;
 
 // All static methods are for internal purposes and not exposed to the one
