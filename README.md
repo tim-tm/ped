@@ -7,106 +7,20 @@ Ped is a vim-like editor made for the terminal using ncurses.
 
 ## Getting started
 
-### Package managers
-
-> [!WARNING]
-> Ped is still in a every early state of development, expect bugs or flaws
-
-[![Packaging status](https://repology.org/badge/vertical-allrepos/ped.svg)](https://repology.org/project/ped/versions)
-
-### Release page
-
-If your favourite package manager is not yet supported, try downloading a release tarball from the [releases page](https://github.com/tim-tm/ped/releases).
-
-Unzipping the tarball
-```sh
-tar -xf ped-VERSION.tar.gz && cd ped-VERSION
-```
-
-Configuring and building ped from the tarball
-```sh
-./configure && make
-```
-
-Installing
-```sh
-sudo make install
-```
-
 ### Building on your own
 
 **Prerequisites**
 
-- autotools
-- make
 - gcc
-- pkg-config
-- ncurses (listed in pkg-config)
-
-Cloning the repo
-```sh
-git clone https://github.com/tim-tm/ped.git && cd ped
-```
-
-Make the generation script executable (only if it isn't as of right now)
-```sh
-chmod +x autogen.sh
-```
-
-Generating build files
-```sh
-./autogen.sh
-```
-
-Everything needed to build ped will be stored in ./build, autoconf will generate a bunch of files that you shouldn't care that much about.
+- ncurses
 
 Building
 ```sh
-make -C build
-```
-or
-```sh
-cd build && make
+gcc -Wall -Wextra nob.c -o nob
+./nob
 ```
 
-The ped executable will be stored in ./build
-
-Installing ped
-```sh
-sudo make -C build install
-```
-or
-```sh
-cd build && sudo make install
-```
-
-**Distribution**
-
-If you want to share ped with others, consider creating a tarball.
-```sh
-make -C build dist
-```
-or
-```sh
-cd build && make dist
-```
-
-There will now be a tarball named **ped-VERSION.tar.gz** that can be shared with your friends.
-
-Unzipping the tarball
-```sh
-tar -xf ped-VERSION.tar.gz && cd ped-VERSION
-```
-
-Configuring and building ped from the tarball
-```sh
-./configure && make
-```
-
-Installing
-```sh
-sudo make install
-```
+The ped executable will be stored at `./build/ped`.
 
 ## Usage
 
@@ -325,7 +239,7 @@ Buffer
 ```
 
 This way of storing file-data comes with advantages and disadvantages though.
-It is easier to mainipulate, insert and append buffer content (Lines, Chars) because you only need to change references.
+It is easier to manipulate, insert and append buffer content (Lines, Chars) because you only need to change references.
 The main downside is the serialization and deserialization, that process is way more complex than just copying a string,
 which is what you would do if you were to use an array of strings.
 
@@ -352,17 +266,6 @@ Changing the reference of a character only needs to be done once.
 
 Even though linked-lists are faster to manipulate, this is a choice of preference.
 It is definetly much more simple to store buffer data in an array of strings.
-
-## Contributing
-
-Steps to contribution:
-
-1. Make a fork of ped
-2. create a feature branch (optional, may be done on bigger changes tho)
-3. Add **and test** your changes inside of your fork
-4. Open a pull request if you're happy with your contribution
-
-Your changes should not be extremely huge, if you really want to contribute something that may break the editor or introduce a dramatical change, please open an issue first in order to discuss your ideas.
 
 ## License
 
