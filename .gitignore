@@ -1,14 +1,5 @@
-autom4te.cache/
 build/
-aclocal.m4
-compile
-configure
-configure~
-depcomp
-install-sh
-Makefile.in
-missing
-config.guess
-config.sub
 compile_commands.json
 .cache/
+nob
+nob.old

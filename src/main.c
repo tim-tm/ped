@@ -172,6 +172,7 @@ bool mode_handle_normal(Buffer *buf, State *state, wint_t c) {
         state->current_mode = MODE_INSERT;
     } break;
     case 'a': {
+        SET_CURSOR_STYLE(CURSOR_BAR);
         state->current_mode = MODE_INSERT;
     } break;
     case 'v': {
